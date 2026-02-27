@@ -775,29 +775,31 @@ private fun TemperatureInputDialog(
     var isError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
     var hasAutoConfirmed by remember { mutableStateOf(false) }
-    var hasPlayedSound by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        if (!hasPlayedSound) {
-            hasPlayedSound = true
-            try {
-                val mediaPlayer = MediaPlayer.create(context, R.raw.coins)
-                mediaPlayer?.apply {
-                    setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_ALARM)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .build()
-                    )
-                    isLooping = false
-                    setVolume(1f, 1f)
-                    setOnCompletionListener { it.release() }
-                    start()
-                }
-            } catch (_: Exception) {
-                // Ignore sound errors
+    // Function to play notification sound
+    val playNotificationSound = {
+        try {
+            val mediaPlayer = MediaPlayer.create(context, R.raw.coins)
+            mediaPlayer?.apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                isLooping = false
+                setVolume(1f, 1f)
+                setOnCompletionListener { it.release() }
+                start()
             }
+        } catch (_: Exception) {
+            // Ignore sound errors
         }
+    }
+
+    // Play sound when dialog first appears
+    LaunchedEffect(Unit) {
+        playNotificationSound()
     }
 
     LaunchedEffect(Unit) {
@@ -829,6 +831,10 @@ private fun TemperatureInputDialog(
                     delay(800)
                     onAutoStartVoice()
                 }
+            }
+            is VoiceRecognitionState.Listening -> {
+                // Play sound when voice recognition restarts (after error or no result)
+                playNotificationSound()
             }
             else -> {
                 isError = false

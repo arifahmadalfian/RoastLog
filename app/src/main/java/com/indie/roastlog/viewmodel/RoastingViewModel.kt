@@ -218,9 +218,22 @@ class RoastingViewModel : ViewModel() {
                     val currentIntervalCount = newSeconds / interval
                     val maxIntervals = totalSeconds / interval
 
+                    // Check for interval popup first (including final interval)
                     if (currentIntervalCount > lastInterval && currentIntervalCount <= maxIntervals) {
                         lastInterval = currentIntervalCount
                         onIntervalPassed(currentIntervalCount)
+                    }
+
+                    // Auto stop timer if exceeded duration (after showing final popup)
+                    // Only stop if no popup is currently showing
+                    if (newSeconds >= totalSeconds && !currentState.showTemperatureDialog) {
+                        // Cancel timer job and update state
+                        timerJob?.cancel()
+                        timerJob = null
+                        return@update currentState.copy(
+                            elapsedSeconds = totalSeconds,
+                            isTimerRunning = false
+                        )
                     }
 
                     currentState.copy(elapsedSeconds = newSeconds)
@@ -251,15 +264,38 @@ class RoastingViewModel : ViewModel() {
     }
 
     fun dismissTemperatureDialog() {
-        _uiState.update { it.copy(showTemperatureDialog = false) }
+        _uiState.update { currentState ->
+            val totalSeconds = currentState.targetDuration.toIntOrNull()?.times(60) ?: 0
+            val shouldStopTimer = currentState.elapsedSeconds >= totalSeconds && totalSeconds > 0
+            
+            if (shouldStopTimer) {
+                timerJob?.cancel()
+                timerJob = null
+            }
+            
+            currentState.copy(
+                showTemperatureDialog = false,
+                isTimerRunning = !shouldStopTimer
+            )
+        }
     }
 
     fun addTemperature(temperature: Float) {
         _uiState.update { currentState ->
+            val totalSeconds = currentState.targetDuration.toIntOrNull()?.times(60) ?: 0
+            val shouldStopTimer = currentState.elapsedSeconds >= totalSeconds && totalSeconds > 0
+            
             val newData = currentState.temperatureData + Pair(currentState.currentInterval, temperature)
+            
+            if (shouldStopTimer) {
+                timerJob?.cancel()
+                timerJob = null
+            }
+            
             currentState.copy(
                 temperatureData = newData,
-                showTemperatureDialog = false
+                showTemperatureDialog = false,
+                isTimerRunning = !shouldStopTimer
             )
         }
     }
