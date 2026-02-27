@@ -2,10 +2,14 @@ package com.indie.roastlog.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.media.RingtoneManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -14,6 +18,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -25,6 +32,7 @@ import com.indie.roastlog.viewmodel.RoastingViewModel
 import com.indie.roastlog.ui.components.RoastingChart
 import com.indie.roastlog.ui.components.ChartDataPoint
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +57,13 @@ fun RoastingFormScreen(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         hasAudioPermission = isGranted
+    }
+
+    // Request permission on first launch
+    LaunchedEffect(Unit) {
+        if (!hasAudioPermission) {
+            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
     }
 
     DisposableEffect(Unit) {
@@ -235,6 +250,17 @@ fun RoastingFormScreen(
                 } else {
                     permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                 }
+            },
+            // Auto-start voice when dialog appears
+            autoStartVoice = hasAudioPermission,
+            onAutoStartVoice = {
+                voiceRecognizer.resetState()
+                voiceRecognizer.startListening(context)
+            },
+            // Auto-confirm after successful voice input
+            onAutoConfirm = { temperature ->
+                voiceRecognizer.stopListening()
+                viewModel.addTemperature(temperature)
             }
         )
     }
@@ -386,24 +412,72 @@ private fun TemperatureInputDialog(
     hasAudioPermission: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (Float) -> Unit,
-    onStartVoiceInput: () -> Unit
+    onStartVoiceInput: () -> Unit,
+    autoStartVoice: Boolean,
+    onAutoStartVoice: () -> Unit,
+    onAutoConfirm: (Float) -> Unit
 ) {
+    val context = LocalContext.current
     var temperatureInput by remember { mutableStateOf("") }
     var isError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+    var hasAutoConfirmed by remember { mutableStateOf(false) }
+    var hasPlayedSound by remember { mutableStateOf(false) }
 
+    // Play notification sound when dialog appears
+    LaunchedEffect(Unit) {
+        if (!hasPlayedSound) {
+            hasPlayedSound = true
+            try {
+                val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                val ringtone = RingtoneManager.getRingtone(context, notification)
+                ringtone?.play()
+            } catch (_: Exception) {
+                // Ignore sound errors
+            }
+        }
+    }
+
+    // Auto-start voice recognition when dialog appears
+    LaunchedEffect(Unit) {
+        if (autoStartVoice && !hasAutoConfirmed) {
+            delay(600) // Delay after sound to ensure dialog is fully shown
+            onAutoStartVoice()
+        }
+    }
+
+    // Handle voice state changes - auto-confirm on success
     LaunchedEffect(voiceState) {
         when (voiceState) {
             is VoiceRecognitionState.Success -> {
                 temperatureInput = voiceState.number.toInt().toString()
                 isError = false
                 errorMessage = ""
+                
+                // Auto-confirm after successful voice input with a small delay
+                if (!hasAutoConfirmed) {
+                    hasAutoConfirmed = true
+                    delay(600) // Give user time to see the recognized number
+                    onAutoConfirm(voiceState.number)
+                }
             }
             is VoiceRecognitionState.Error -> {
-                isError = true
-                errorMessage = voiceState.message
+                // Don't show error immediately - only after user has had a chance to speak
+                if (voiceState.message != "Tidak ada hasil") {
+                    isError = true
+                    errorMessage = voiceState.message
+                }
+                // Restart voice recognition after error if we have permission
+                if (autoStartVoice && hasAudioPermission && !hasAutoConfirmed) {
+                    delay(800)
+                    onAutoStartVoice()
+                }
             }
-            else -> {}
+            else -> {
+                // Clear error when idle or listening
+                isError = false
+                errorMessage = ""
+            }
         }
     }
 
@@ -413,9 +487,23 @@ private fun TemperatureInputDialog(
             Text("Input Suhu #$intervalNumber (Menit $elapsedTime)")
         },
         text = {
-            Column {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Listening Animation
+                if (voiceState is VoiceRecognitionState.Listening) {
+                    ListeningAnimation()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Mendengarkan...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
                 Text(
-                    text = "Masukkan suhu roasting saat ini (°C):",
+                    text = "Silakan katakan suhu (contoh: 'seratus lima puluh' atau '150'):",
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
@@ -432,8 +520,10 @@ private fun TemperatureInputDialog(
                     isError = isError,
                     supportingText = {
                         when {
-                            errorMessage.isNotEmpty() -> Text(errorMessage)
-                            voiceState is VoiceRecognitionState.Listening -> Text("Mendengarkan...")
+                            errorMessage.isNotEmpty() -> Text(errorMessage, color = MaterialTheme.colorScheme.error)
+                            voiceState is VoiceRecognitionState.Success -> Text("✓ Suhu terdeteksi: ${temperatureInput}°C", color = MaterialTheme.colorScheme.primary)
+                            voiceState is VoiceRecognitionState.Listening -> Text("Katakan suhu sekarang...", color = MaterialTheme.colorScheme.primary)
+                            else -> Text("Ketik angka atau gunakan mikrofon")
                         }
                     },
                     trailingIcon = {
@@ -454,7 +544,7 @@ private fun TemperatureInputDialog(
 
                 if (!hasAudioPermission) {
                     Text(
-                        text = "Permission mikrofon diperlukan untuk input suara",
+                        text = "⚠️ Permission mikrofon diperlukan untuk input suara",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(top = 8.dp)
@@ -483,4 +573,59 @@ private fun TemperatureInputDialog(
             }
         }
     )
+}
+
+@Composable
+private fun ListeningAnimation() {
+    val infiniteTransition = rememberInfiniteTransition(label = "listening")
+    
+    // Multiple pulsing circles
+    val scales = List(3) { index ->
+        infiniteTransition.animateFloat(
+            initialValue = 0.6f,
+            targetValue = 1.2f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(800, delayMillis = index * 200, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "scale$index"
+        )
+    }
+    
+    val alpha = infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha"
+    )
+
+    Box(
+        modifier = Modifier.size(80.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Pulsing circles
+        scales.forEachIndexed { index, scale ->
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .scale(scale.value)
+                    .alpha(if (index == 0) alpha.value else 0.3f)
+                    .background(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                        shape = CircleShape
+                    )
+            )
+        }
+        
+        // Center icon
+        Icon(
+            imageVector = Icons.Default.Mic,
+            contentDescription = null,
+            modifier = Modifier.size(32.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+    }
 }
