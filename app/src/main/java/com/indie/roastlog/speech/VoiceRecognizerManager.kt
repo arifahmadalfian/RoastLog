@@ -2,6 +2,7 @@ package com.indie.roastlog.speech
 
 import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -23,6 +24,10 @@ class VoiceRecognizerManager(context: Context) {
     private val _state = MutableStateFlow<VoiceRecognitionState>(VoiceRecognitionState.Idle)
     val state: StateFlow<VoiceRecognitionState> = _state.asStateFlow()
 
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private var previousSystemVolume: Int? = null
+    private var systemMuted: Boolean = false
+
     private val recognitionListener = object : RecognitionListener {
         override fun onReadyForSpeech(params: Bundle?) {
             _state.value = VoiceRecognitionState.Listening
@@ -34,6 +39,7 @@ class VoiceRecognizerManager(context: Context) {
         override fun onEndOfSpeech() {}
 
         override fun onError(error: Int) {
+            suppressSystemSounds(false)
             val message = when (error) {
                 SpeechRecognizer.ERROR_AUDIO -> "Error audio"
                 SpeechRecognizer.ERROR_CLIENT -> "Error client"
@@ -50,6 +56,7 @@ class VoiceRecognizerManager(context: Context) {
         }
 
         override fun onResults(results: Bundle?) {
+            suppressSystemSounds(false)
             val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             if (!matches.isNullOrEmpty()) {
                 val text = matches[0]
@@ -78,6 +85,8 @@ class VoiceRecognizerManager(context: Context) {
             return
         }
 
+        suppressSystemSounds(true)
+
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, "id-ID")
@@ -87,11 +96,13 @@ class VoiceRecognizerManager(context: Context) {
         try {
             speechRecognizer?.startListening(intent)
         } catch (e: Exception) {
+            suppressSystemSounds(false)
             _state.value = VoiceRecognitionState.Error("Gagal memulai: ${e.message}")
         }
     }
 
     fun stopListening() {
+        suppressSystemSounds(false)
         speechRecognizer?.stopListening()
     }
 
@@ -100,7 +111,19 @@ class VoiceRecognizerManager(context: Context) {
     }
 
     fun destroy() {
+        suppressSystemSounds(false)
         speechRecognizer?.destroy()
+    }
+
+    private fun suppressSystemSounds(enable: Boolean) {
+        if (enable && !systemMuted) {
+            previousSystemVolume = audioManager.getStreamVolume(AudioManager.STREAM_SYSTEM)
+            audioManager.setStreamVolume(AudioManager.STREAM_SYSTEM, 0, 0)
+            systemMuted = true
+        } else if (!enable && systemMuted) {
+            previousSystemVolume?.let { audioManager.setStreamVolume(AudioManager.STREAM_SYSTEM, it, 0) }
+            systemMuted = false
+        }
     }
 
     private fun extractNumber(text: String): Float? {

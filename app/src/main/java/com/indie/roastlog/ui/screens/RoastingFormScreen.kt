@@ -2,7 +2,8 @@ package com.indie.roastlog.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.media.RingtoneManager
+import android.media.AudioAttributes
+import android.media.MediaPlayer
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
@@ -33,6 +34,7 @@ import com.indie.roastlog.ui.components.RoastingChart
 import com.indie.roastlog.ui.components.ChartDataPoint
 import com.indie.roastlog.pdf.PdfExportManager
 import com.indie.roastlog.pdf.RoastSessionData
+import com.indie.roastlog.R
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.delay
@@ -53,6 +55,12 @@ fun RoastingFormScreen(
     // Snackbar for showing export status
     val snackbarHostState = remember { SnackbarHostState() }
     var isExporting by remember { mutableStateOf(false) }
+
+    // Revision dialog state
+    var showRevisionDialog by remember { mutableStateOf(false) }
+    var selectedRevisionInterval by remember { mutableStateOf<Int?>(null) }
+    var revisionTemperatureInput by remember { mutableStateOf("") }
+    var revisionDropdownExpanded by remember { mutableStateOf(false) }
 
     var hasAudioPermission by remember {
         mutableStateOf(
@@ -411,6 +419,16 @@ fun RoastingFormScreen(
             val scope = rememberCoroutineScope()
             
             Button(
+                onClick = { showRevisionDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = uiState.temperatureData.isNotEmpty() && !uiState.isTimerRunning
+            ) {
+                Text("Revisi Suhu")
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
                 onClick = {
                     if (!isExporting) {
                         scope.launch {
@@ -450,6 +468,99 @@ fun RoastingFormScreen(
                     Text("Export PDF")
                 }
             }
+        }
+
+        if (showRevisionDialog) {
+            val intervalSeconds = uiState.intervalSeconds.toIntOrNull() ?: 60
+            val sortedIntervals = uiState.temperatureData.map { it.first }.distinct().sorted()
+
+            LaunchedEffect(sortedIntervals) {
+                if (selectedRevisionInterval == null && sortedIntervals.isNotEmpty()) {
+                    val firstInterval = sortedIntervals.first()
+                    selectedRevisionInterval = firstInterval
+                    val currentTemp = uiState.temperatureData.firstOrNull { it.first == firstInterval }?.second
+                    revisionTemperatureInput = currentTemp?.toString() ?: ""
+                }
+            }
+
+            AlertDialog(
+                onDismissRequest = { showRevisionDialog = false },
+                title = { Text("Revisi Suhu") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ExposedDropdownMenuBox(
+                            expanded = revisionDropdownExpanded,
+                            onExpandedChange = { revisionDropdownExpanded = it },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            val selectedLabel = selectedRevisionInterval?.let {
+                                formatIntervalLabel(it, intervalSeconds)
+                            } ?: "Pilih menit"
+
+                            OutlinedTextField(
+                                value = selectedLabel,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Menit") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = revisionDropdownExpanded) },
+                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                modifier = Modifier
+                                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                                    .fillMaxWidth()
+                            )
+
+                            ExposedDropdownMenu(
+                                expanded = revisionDropdownExpanded,
+                                onDismissRequest = { revisionDropdownExpanded = false }
+                            ) {
+                                sortedIntervals.forEach { interval ->
+                                    val label = formatIntervalLabel(interval, intervalSeconds)
+                                    DropdownMenuItem(
+                                        text = { Text(label) },
+                                        onClick = {
+                                            selectedRevisionInterval = interval
+                                            val currentTemp = uiState.temperatureData.firstOrNull { it.first == interval }?.second
+                                            revisionTemperatureInput = currentTemp?.toString() ?: ""
+                                            revisionDropdownExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        OutlinedTextField(
+                            value = revisionTemperatureInput,
+                            onValueChange = { value ->
+                                revisionTemperatureInput = value.filter { it.isDigit() || it == '.' }
+                            },
+                            label = { Text("Suhu (°C)") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val interval = selectedRevisionInterval
+                            val newTemp = revisionTemperatureInput.toFloatOrNull()
+                            if (interval != null && newTemp != null) {
+                                viewModel.updateTemperatureAtInterval(interval, newTemp)
+                                showRevisionDialog = false
+                            }
+                        },
+                        enabled = selectedRevisionInterval != null && revisionTemperatureInput.toFloatOrNull() != null
+                    ) {
+                        Text("Submit")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showRevisionDialog = false }) {
+                        Text("Batal")
+                    }
+                }
+            )
         }
 
         if (uiState.showTemperatureDialog) {
@@ -655,9 +766,19 @@ private fun TemperatureInputDialog(
         if (!hasPlayedSound) {
             hasPlayedSound = true
             try {
-                val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-                val ringtone = RingtoneManager.getRingtone(context, notification)
-                ringtone?.play()
+                val mediaPlayer = MediaPlayer.create(context, R.raw.coins)
+                mediaPlayer?.apply {
+                    setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ALARM)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build()
+                    )
+                    isLooping = false
+                    setVolume(1f, 1f)
+                    setOnCompletionListener { it.release() }
+                    start()
+                }
             } catch (_: Exception) {
                 // Ignore sound errors
             }
@@ -792,6 +913,13 @@ private fun TemperatureInputDialog(
             }
         }
     )
+}
+
+private fun formatIntervalLabel(interval: Int, intervalSeconds: Int): String {
+    val totalSeconds = interval * intervalSeconds
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format(Locale.getDefault(), "%d.%02d", minutes, seconds)
 }
 
 @Composable

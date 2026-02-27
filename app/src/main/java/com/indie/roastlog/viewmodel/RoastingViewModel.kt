@@ -264,6 +264,17 @@ class RoastingViewModel : ViewModel() {
         }
     }
 
+    fun updateTemperatureAtInterval(interval: Int, temperature: Float) {
+        _uiState.update { currentState ->
+            val updated = currentState.temperatureData
+                .filterNot { it.first == interval }
+                .plus(Pair(interval, temperature))
+                .sortedBy { it.first }
+
+            currentState.copy(temperatureData = updated)
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()

@@ -2,19 +2,22 @@ package com.indie.roastlog.pdf
 
 import android.content.ContentValues
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.os.Environment
 import android.provider.MediaStore
-import androidx.core.graphics.toColorInt
+import android.view.View
+import android.view.ViewGroup
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
-import com.indie.roastlog.ui.components.ChartDataPoint
+import com.github.mikephil.charting.formatter.ValueFormatter
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -55,9 +58,9 @@ class PdfExportManager(private val context: Context) {
 
     fun exportRoastSessionToPdf(data: RoastSessionData): String? {
         val pdfDocument = PdfDocument()
-        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create() // A4 size
-        val page = pdfDocument.startPage(pageInfo)
-        val canvas = page.canvas
+        var currentPage: PdfDocument.Page? = null
+        var canvas: Canvas? = null
+        var pageNumber = 1
 
         val paint = Paint().apply {
             color = Color.BLACK
@@ -76,40 +79,46 @@ class PdfExportManager(private val context: Context) {
             typeface = Typeface.DEFAULT_BOLD
         }
 
-        val smallPaint = Paint().apply {
-            color = Color.BLACK
-            textSize = 10f
+        // Helper function to start a new page
+        fun startNewPage(): Canvas {
+            currentPage?.let { pdfDocument.finishPage(it) }
+            val pageInfo = PdfDocument.PageInfo.Builder(595, 842, pageNumber++).create()
+            currentPage = pdfDocument.startPage(pageInfo)
+            return currentPage!!.canvas
         }
 
+        // Start first page
+        canvas = startNewPage()
+        val firstCanvas = canvas!!
         var yPosition = 50f
 
         // Title
-        canvas.drawText("Roast Log Report", 50f, yPosition, titlePaint)
+        firstCanvas.drawText("Roast Log Report", 50f, yPosition, titlePaint)
         yPosition += 30f
 
         // Date
         val dateFormat = SimpleDateFormat("dd MMMM yyyy HH:mm", Locale("id", "ID"))
-        canvas.drawText("Tanggal: ${dateFormat.format(data.roastDate)}", 50f, yPosition, paint)
+        firstCanvas.drawText("Tanggal: ${dateFormat.format(data.roastDate)}", 50f, yPosition, paint)
         yPosition += 25f
 
         // Bean Information Section
-        canvas.drawText("Informasi Bean:", 50f, yPosition, headerPaint)
+        firstCanvas.drawText("Informasi Bean:", 50f, yPosition, headerPaint)
         yPosition += 20f
-        canvas.drawText("Jenis Bean: ${data.beanType}", 50f, yPosition, paint)
+        firstCanvas.drawText("Jenis Bean: ${data.beanType}", 50f, yPosition, paint)
         yPosition += 15f
-        canvas.drawText("Kadar Air: ${data.waterContent}%", 50f, yPosition, paint)
+        firstCanvas.drawText("Kadar Air: ${data.waterContent}%", 50f, yPosition, paint)
         yPosition += 15f
-        canvas.drawText("Density: ${data.density} kg/l", 50f, yPosition, paint)
+        firstCanvas.drawText("Density: ${data.density} kg/l", 50f, yPosition, paint)
         yPosition += 15f
-        canvas.drawText("Roast Type: ${data.roastType}", 50f, yPosition, paint)
+        firstCanvas.drawText("Roast Type: ${data.roastType}", 50f, yPosition, paint)
         yPosition += 25f
 
         // Weight Information
-        canvas.drawText("Informasi Berat:", 50f, yPosition, headerPaint)
+        firstCanvas.drawText("Informasi Berat:", 50f, yPosition, headerPaint)
         yPosition += 20f
-        canvas.drawText("Berat Masuk: ${data.weightIn} gram", 50f, yPosition, paint)
+        firstCanvas.drawText("Berat Masuk: ${data.weightIn} gram", 50f, yPosition, paint)
         yPosition += 15f
-        canvas.drawText("Berat Keluar: ${data.weightOut} gram", 50f, yPosition, paint)
+        firstCanvas.drawText("Berat Keluar: ${data.weightOut} gram", 50f, yPosition, paint)
         yPosition += 15f
         val weightLoss = if (data.weightIn.isNotEmpty() && data.weightOut.isNotEmpty()) {
             val inWeight = data.weightIn.toFloatOrNull() ?: 0f
@@ -118,80 +127,66 @@ class PdfExportManager(private val context: Context) {
             val lossPercent = if (inWeight > 0) (loss / inWeight) * 100 else 0f
             "%.1f g (%.1f%%)".format(loss, lossPercent)
         } else "N/A"
-        canvas.drawText("Weight Loss: $weightLoss", 50f, yPosition, paint)
+        firstCanvas.drawText("Weight Loss: $weightLoss", 50f, yPosition, paint)
         yPosition += 25f
 
         // Time & Temperature Section
-        canvas.drawText("Time & Temperature:", 50f, yPosition, headerPaint)
+        firstCanvas.drawText("Time & Temperature:", 50f, yPosition, headerPaint)
         yPosition += 20f
-        
-        // Row 1: Charge Time | End Time
-        canvas.drawText("Charge Time: ${data.chargeTimeTemp.ifEmpty { "-" }}°C", 50f, yPosition, paint)
-        canvas.drawText("End Time: ${data.endTimeTemp.ifEmpty { "-" }}°C", 250f, yPosition, paint)
+        firstCanvas.drawText("Charge Time: ${data.chargeTimeTemp.ifEmpty { "-" }}°C", 50f, yPosition, paint)
+        firstCanvas.drawText("End Time: ${data.endTimeTemp.ifEmpty { "-" }}°C", 250f, yPosition, paint)
         yPosition += 15f
-        
-        // Row 2: Roast Time | Dev Time
-        canvas.drawText("Roast Time: ${data.roastTime.ifEmpty { "-" }} menit", 50f, yPosition, paint)
-        canvas.drawText("Dev Time: ${data.devTime.ifEmpty { "-" }} menit", 250f, yPosition, paint)
+        firstCanvas.drawText("Roast Time: ${data.roastTime.ifEmpty { "-" }} menit", 50f, yPosition, paint)
+        firstCanvas.drawText("Dev Time: ${data.devTime.ifEmpty { "-" }} menit", 250f, yPosition, paint)
         yPosition += 25f
 
         // Event Suhu Section
-        canvas.drawText("Event Suhu:", 50f, yPosition, headerPaint)
+        firstCanvas.drawText("Event Suhu:", 50f, yPosition, headerPaint)
         yPosition += 20f
-        
-        // Row 1: Turn Point | Yellowing
-        canvas.drawText("Turn Point: ${data.turnPoint.ifEmpty { "-" }}°C", 50f, yPosition, paint)
-        canvas.drawText("Yellowing: ${data.yellowing.ifEmpty { "-" }}°C", 250f, yPosition, paint)
+        firstCanvas.drawText("Turn Point: ${data.turnPoint.ifEmpty { "-" }}°C", 50f, yPosition, paint)
+        firstCanvas.drawText("Yellowing: ${data.yellowing.ifEmpty { "-" }}°C", 250f, yPosition, paint)
         yPosition += 15f
-        
-        // Row 2: First Crack
-        canvas.drawText("First Crack: ${data.firstCrack.ifEmpty { "-" }}°C", 50f, yPosition, paint)
+        firstCanvas.drawText("First Crack: ${data.firstCrack.ifEmpty { "-" }}°C", 50f, yPosition, paint)
         yPosition += 25f
 
         // Parameter Mesin Section
-        canvas.drawText("Parameter Mesin:", 50f, yPosition, headerPaint)
+        firstCanvas.drawText("Parameter Mesin:", 50f, yPosition, headerPaint)
         yPosition += 20f
-        
-        // Row 1: Air Flow | RPM Drum
-        canvas.drawText("Air Flow: ${data.airFlowPower.ifEmpty { "-" }}", 50f, yPosition, paint)
-        canvas.drawText("RPM Drum: ${data.rpmDrum.ifEmpty { "-" }}", 250f, yPosition, paint)
+        firstCanvas.drawText("Air Flow: ${data.airFlowPower.ifEmpty { "-" }}", 50f, yPosition, paint)
+        firstCanvas.drawText("RPM Drum: ${data.rpmDrum.ifEmpty { "-" }}", 250f, yPosition, paint)
         yPosition += 15f
-        
-        // Row 2: Burner Power | ROR
-        canvas.drawText("Burner Power: ${data.burnerPower.ifEmpty { "-" }}", 50f, yPosition, paint)
-        canvas.drawText("ROR: ${data.ror.ifEmpty { "-" }}", 250f, yPosition, paint)
+        firstCanvas.drawText("Burner Power: ${data.burnerPower.ifEmpty { "-" }}", 50f, yPosition, paint)
+        firstCanvas.drawText("ROR: ${data.ror.ifEmpty { "-" }}", 250f, yPosition, paint)
         yPosition += 25f
 
         // Roast Session Info
-        canvas.drawText("Informasi Roasting:", 50f, yPosition, headerPaint)
+        firstCanvas.drawText("Informasi Roasting:", 50f, yPosition, headerPaint)
         yPosition += 20f
-        canvas.drawText("Durasi Target: ${data.targetDuration} menit", 50f, yPosition, paint)
+        firstCanvas.drawText("Durasi Target: ${data.targetDuration} menit", 50f, yPosition, paint)
         yPosition += 15f
-        canvas.drawText("Interval Input: ${data.intervalSeconds} detik", 50f, yPosition, paint)
+        firstCanvas.drawText("Interval Input: ${data.intervalSeconds} detik", 50f, yPosition, paint)
         yPosition += 15f
-        canvas.drawText("Suhu Awal: ${data.startTemperature.toInt()}°C", 50f, yPosition, paint)
-        yPosition += 30f
+        firstCanvas.drawText("Suhu Awal: ${data.startTemperature.toInt()}°C", 50f, yPosition, paint)
+        yPosition += 25f
 
-        // Check if we need a new page for temperature profile
-        if (yPosition > 650f) {
-            pdfDocument.finishPage(page)
-            val newPageInfo = PdfDocument.PageInfo.Builder(595, 842, pdfDocument.pages.size + 1).create()
-            val newPage = pdfDocument.startPage(newPageInfo)
+        // Temperature Profile (Diagram)
+        if (yPosition > 450f) {
+            canvas = startNewPage()
             yPosition = 50f
-            
-            // Draw Temperature Profile on new page
-            newPage.canvas.drawText("Temperature Profile:", 50f, yPosition, headerPaint)
-            yPosition += 20f
-            
-            drawTemperatureTable(newPage.canvas, data, yPosition, paint, headerPaint, smallPaint, pdfDocument)
-            pdfDocument.finishPage(newPage)
-        } else {
-            // Draw Temperature Profile on current page
-            canvas.drawText("Temperature Profile:", 50f, yPosition, headerPaint)
-            yPosition += 20f
-            
-            drawTemperatureTable(canvas, data, yPosition, paint, headerPaint, smallPaint, pdfDocument)
         }
+
+        val chartCanvas = canvas!!
+        chartCanvas.drawText("Temperature Profile:", 50f, yPosition, headerPaint)
+        yPosition += 20f
+
+        val chartBitmap = createChartBitmap(data)
+        val chartHeight = 300
+        val chartWidth = 500
+        chartCanvas.drawBitmap(chartBitmap, 50f, yPosition, null)
+        yPosition += chartHeight + 10f
+
+        // Finish the last page
+        currentPage?.let { pdfDocument.finishPage(it) }
 
         // Save PDF to Downloads
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
@@ -199,7 +194,6 @@ class PdfExportManager(private val context: Context) {
 
         return try {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                // Android 10+ - use MediaStore
                 val contentValues = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
                     put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
@@ -218,7 +212,6 @@ class PdfExportManager(private val context: Context) {
                     "Downloads/$fileName"
                 }
             } else {
-                // Android 9 and below - use direct file access
                 val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
                 val file = File(downloadsDir, fileName)
                 FileOutputStream(file).use { outputStream ->
@@ -234,59 +227,85 @@ class PdfExportManager(private val context: Context) {
         }
     }
 
-    private fun drawTemperatureTable(
-        initialCanvas: android.graphics.Canvas,
-        data: RoastSessionData,
-        startY: Float,
-        paint: Paint,
-        headerPaint: Paint,
-        smallPaint: Paint,
-        pdfDocument: PdfDocument
-    ): Float {
-        var yPosition = startY
-        var currentCanvas = initialCanvas
+    private fun createChartBitmap(data: RoastSessionData): Bitmap {
+        val chartWidth = 500
+        val chartHeight = 300
 
-        // Create temperature table
-        if (data.temperatureData.isNotEmpty()) {
-            // Table header
-            currentCanvas.drawText("Waktu", 50f, yPosition, headerPaint)
-            currentCanvas.drawText("Interval", 120f, yPosition, headerPaint)
-            currentCanvas.drawText("Suhu (°C)", 190f, yPosition, headerPaint)
-            yPosition += 15f
+        val chart = LineChart(context).apply {
+            layoutParams = ViewGroup.LayoutParams(chartWidth, chartHeight)
+            setBackgroundColor(Color.WHITE)
+            description.isEnabled = false
+            legend.isEnabled = false
+            setDrawGridBackground(false)
+            setTouchEnabled(false)
+            setScaleEnabled(false)
+            setPinchZoom(false)
 
-            // Draw line under header
-            currentCanvas.drawLine(50f, yPosition - 5f, 250f, yPosition - 5f, paint)
-
-            // Table rows
-            data.temperatureData.sortedBy { it.first }.forEach { (intervalNum, temp) ->
-                if (yPosition > 800f) {
-                    // Finish current page and start new one
-                    val newPageInfo = PdfDocument.PageInfo.Builder(595, 842, pdfDocument.pages.size + 1).create()
-                    val newPage = pdfDocument.startPage(newPageInfo)
-                    currentCanvas = newPage.canvas
-                    yPosition = 50f
-                    // Redraw header on new page
-                    currentCanvas.drawText("Waktu", 50f, yPosition, headerPaint)
-                    currentCanvas.drawText("Interval", 120f, yPosition, headerPaint)
-                    currentCanvas.drawText("Suhu (°C)", 190f, yPosition, headerPaint)
-                    yPosition += 15f
-                    currentCanvas.drawLine(50f, yPosition - 5f, 250f, yPosition - 5f, paint)
-                }
-
-                val minutes = (intervalNum * data.intervalSeconds) / 60
-                val seconds = (intervalNum * data.intervalSeconds) % 60
-                val timeStr = String.format("%d:%02d", minutes, seconds)
-
-                currentCanvas.drawText(timeStr, 50f, yPosition, paint)
-                currentCanvas.drawText("#$intervalNum", 120f, yPosition, paint)
-                currentCanvas.drawText("${temp.toInt()}°C", 190f, yPosition, paint)
-                yPosition += 15f
+            axisLeft.apply {
+                setDrawGridLines(true)
+                axisMinimum = 70f
+                axisMaximum = 240f
+                textColor = Color.BLACK
+                textSize = 10f
+                labelCount = 18
             }
-        } else {
-            currentCanvas.drawText("Tidak ada data suhu", 50f, yPosition, paint)
-            yPosition += 15f
+
+            axisRight.isEnabled = false
+
+            xAxis.apply {
+                position = XAxis.XAxisPosition.BOTTOM
+                setDrawGridLines(true)
+                granularity = 1f
+                textColor = Color.BLACK
+                textSize = 8f
+                axisMinimum = 0f
+                labelRotationAngle = -45f
+                valueFormatter = PdfTimeAxisFormatter(data.intervalSeconds)
+            }
         }
 
-        return yPosition
+        val entries = data.temperatureData.map { (intervalNum, temp) ->
+            Entry(intervalNum.toFloat(), temp)
+        }
+
+        val dataSet = LineDataSet(entries, "Temperature").apply {
+            color = Color.parseColor("#2196F3")
+            lineWidth = 2f
+            setDrawCircles(true)
+            setCircleColor(Color.parseColor("#2196F3"))
+            circleRadius = 3f
+            setDrawValues(false)
+            mode = LineDataSet.Mode.LINEAR
+        }
+
+        chart.data = LineData(dataSet)
+
+        // Measure and layout
+        chart.measure(
+            View.MeasureSpec.makeMeasureSpec(chartWidth, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(chartHeight, View.MeasureSpec.EXACTLY)
+        )
+        chart.layout(0, 0, chartWidth, chartHeight)
+
+        // Draw to bitmap
+        val bitmap = Bitmap.createBitmap(chartWidth, chartHeight, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        chart.draw(canvas)
+
+        return bitmap
+    }
+
+    private class PdfTimeAxisFormatter(private val intervalSeconds: Int) : ValueFormatter() {
+        override fun getFormattedValue(value: Float): String {
+            val intervalNum = value.toInt()
+            val totalSeconds = intervalNum * intervalSeconds
+            val minutes = totalSeconds / 60
+            val seconds = totalSeconds % 60
+
+            return when {
+                intervalSeconds >= 60 -> "$minutes"
+                else -> String.format(Locale.getDefault(), "%d.%02d", minutes, seconds)
+            }
+        }
     }
 }
