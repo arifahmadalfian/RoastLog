@@ -34,9 +34,9 @@ data class RoastingFormState(
     val burnerPower: String = "", // Burner Power
     val ror: String = "", // ROR (Rate of Rise)
     // Timer & Chart
-    val targetDuration: String = "", // in minutes
+    val targetDuration: String = "20", // default 20 minutes
     val intervalSeconds: String = "60", // default 60 seconds
-    val startTemperature: String = "", // initial temperature
+    val startTemperature: String = "70", // default 70°C
     val elapsedSeconds: Int = 0,
     val isTimerRunning: Boolean = false,
     val temperatureData: List<Pair<Int, Float>> = emptyList(),

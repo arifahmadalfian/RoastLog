@@ -8,9 +8,11 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -22,7 +24,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -35,7 +39,6 @@ import com.indie.roastlog.ui.components.ChartDataPoint
 import com.indie.roastlog.pdf.PdfExportManager
 import com.indie.roastlog.pdf.RoastSessionData
 import com.indie.roastlog.R
-import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -142,66 +145,93 @@ fun RoastingFormScreen(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            OutlinedTextField(
+            SmallOutlinedTextField(
                 value = uiState.beanType,
                 onValueChange = { viewModel.updateBeanType(it) },
-                label = { Text("Jenis Bean") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                label = "Jenis Bean",
+                modifier = Modifier.fillMaxWidth()
             )
 
-            OutlinedTextField(
-                value = uiState.waterContent,
-                onValueChange = { viewModel.updateWaterContent(it) },
-                label = { Text("Kadar Air (%)") },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true
-            )
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SmallOutlinedTextField(
+                    value = uiState.waterContent,
+                    onValueChange = { viewModel.updateWaterContent(it) },
+                    label = "Kadar Air (°)",
+                    keyboardType = KeyboardType.Decimal,
+                    modifier = Modifier.weight(1f)
+                )
+                SmallOutlinedTextField(
+                    value = uiState.density,
+                    onValueChange = { viewModel.updateDensity(it) },
+                    label = "Density (kg/L)",
+                    keyboardType = KeyboardType.Decimal,
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
-            OutlinedTextField(
-                value = uiState.density,
-                onValueChange = { viewModel.updateDensity(it) },
-                label = { Text("Density (kg/l)") },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true
-            )
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SmallOutlinedTextField(
+                    value = uiState.weightIn,
+                    onValueChange = { viewModel.updateWeightIn(it) },
+                    label = "Berat Masuk (gr)",
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.weight(1f)
+                )
+                SmallOutlinedTextField(
+                    value = uiState.weightOut,
+                    onValueChange = { viewModel.updateWeightOut(it) },
+                    label = "Berat Keluar (gr)",
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
-            OutlinedTextField(
-                value = uiState.weightIn,
-                onValueChange = { viewModel.updateWeightIn(it) },
-                label = { Text("Berat Masuk (gram)") },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true
-            )
+            HorizontalDivider()
 
-            OutlinedTextField(
-                value = uiState.weightOut,
-                onValueChange = { viewModel.updateWeightOut(it) },
-                label = { Text("Berat Keluar (gram)") },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true
-            )
-
+            // Roast Type Dropdown - Custom Style
             ExposedDropdownMenuBox(
                 expanded = uiState.isRoastTypeExpanded,
                 onExpandedChange = { viewModel.toggleRoastTypeExpanded(it) },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                OutlinedTextField(
-                    value = uiState.roastType,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Roast Type") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = uiState.isRoastTypeExpanded) },
-                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = if (uiState.isRoastTypeExpanded) 4.dp else 1.dp,
+                    tonalElevation = if (uiState.isRoastTypeExpanded) 4.dp else 1.dp,
+                    shape = MaterialTheme.shapes.small,
                     modifier = Modifier
                         .menuAnchor(MenuAnchorType.PrimaryNotEditable)
                         .fillMaxWidth()
-                )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Roasted Type",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (uiState.isRoastTypeExpanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = uiState.roastType,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = uiState.isRoastTypeExpanded)
+                    }
+                }
 
                 ExposedDropdownMenu(
                     expanded = uiState.isRoastTypeExpanded,
@@ -219,33 +249,23 @@ fun RoastingFormScreen(
                 }
             }
 
-            // Section: Time & Temperature
-            Text(
-                text = "Time & Temperature",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-            )
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedTextField(
+                SmallOutlinedTextField(
                     value = uiState.chargeTimeTemp,
                     onValueChange = { viewModel.updateChargeTimeTemp(it) },
-                    label = { Text("Charge Time (°C)") },
-                    modifier = Modifier.weight(1f),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true
+                    label = "Charge Time (°C)",
+                    keyboardType = KeyboardType.Decimal,
+                    modifier = Modifier.weight(1f)
                 )
-                OutlinedTextField(
+                SmallOutlinedTextField(
                     value = uiState.endTimeTemp,
                     onValueChange = { viewModel.updateEndTimeTemp(it) },
-                    label = { Text("End Time (°C)") },
-                    modifier = Modifier.weight(1f),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true
+                    label = "End Time (°C)",
+                    keyboardType = KeyboardType.Decimal,
+                    modifier = Modifier.weight(1f)
                 )
             }
 
@@ -253,147 +273,88 @@ fun RoastingFormScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedTextField(
+                SmallOutlinedTextField(
                     value = uiState.roastTime,
                     onValueChange = { viewModel.updateRoastTime(it) },
-                    label = { Text("Roast Time (menit)") },
-                    modifier = Modifier.weight(1f),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
+                    label = "Roast Time (m)",
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.weight(1f)
                 )
-                OutlinedTextField(
+                SmallOutlinedTextField(
                     value = uiState.devTime,
                     onValueChange = { viewModel.updateDevTime(it) },
-                    label = { Text("Dev Time (menit)") },
-                    modifier = Modifier.weight(1f),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
+                    label = "Dev Time (m)",
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.weight(1f)
                 )
             }
 
-            // Section: Event Suhu
-            Text(
-                text = "Event Suhu",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-            )
+            HorizontalDivider()
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedTextField(
+                SmallOutlinedTextField(
                     value = uiState.turnPoint,
                     onValueChange = { viewModel.updateTurnPoint(it) },
-                    label = { Text("Turn Point (°C)") },
-                    modifier = Modifier.weight(1f),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true
+                    label = "Turn Point (°C)",
+                    keyboardType = KeyboardType.Decimal,
+                    modifier = Modifier.weight(1f)
                 )
-                OutlinedTextField(
+                SmallOutlinedTextField(
                     value = uiState.yellowing,
                     onValueChange = { viewModel.updateYellowing(it) },
-                    label = { Text("Yellowing (°C)") },
-                    modifier = Modifier.weight(1f),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true
+                    label = "Yellowing (°C)",
+                    keyboardType = KeyboardType.Decimal,
+                    modifier = Modifier.weight(1f)
+                )
+                SmallOutlinedTextField(
+                    value = uiState.firstCrack,
+                    onValueChange = { viewModel.updateFirstCrack(it) },
+                    label = "First Crack (°C)",
+                    keyboardType = KeyboardType.Decimal,
+                    modifier = Modifier.weight(1f)
                 )
             }
 
-            OutlinedTextField(
-                value = uiState.firstCrack,
-                onValueChange = { viewModel.updateFirstCrack(it) },
-                label = { Text("First Crack (°C)") },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true
+            HorizontalDivider()
+
+            SmallOutlinedTextField(
+                value = uiState.airFlowPower,
+                onValueChange = { viewModel.updateAirFlowPower(it) },
+                label = "Air Flow Power",
+                supporting = "(besaran buangan asap)",
+                keyboardType = KeyboardType.Number,
+                modifier = Modifier.fillMaxWidth()
             )
 
-            // Section: Parameter Mesin
-            Text(
-                text = "Parameter Mesin",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+            SmallOutlinedTextField(
+                value = uiState.rpmDrum,
+                onValueChange = { viewModel.updateRpmDrum(it) },
+                label = "RPM Drum",
+                supporting = "(kecepatan putaran drum)",
+                keyboardType = KeyboardType.Number,
+                modifier = Modifier.fillMaxWidth()
             )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = uiState.airFlowPower,
-                    onValueChange = { viewModel.updateAirFlowPower(it) },
-                    label = { Text("Air Flow Power") },
-                    modifier = Modifier.weight(1f),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = uiState.rpmDrum,
-                    onValueChange = { viewModel.updateRpmDrum(it) },
-                    label = { Text("RPM Drum") },
-                    modifier = Modifier.weight(1f),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = uiState.burnerPower,
-                    onValueChange = { viewModel.updateBurnerPower(it) },
-                    label = { Text("Burner Power") },
-                    modifier = Modifier.weight(1f),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = uiState.ror,
-                    onValueChange = { viewModel.updateRor(it) },
-                    label = { Text("ROR") },
-                    modifier = Modifier.weight(1f),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true
-                )
-            }
-
-            OutlinedTextField(
-                value = uiState.targetDuration,
-                onValueChange = { viewModel.updateTargetDuration(it) },
-                label = { Text("Durasi Roasting (menit)") },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                enabled = !uiState.isTimerRunning
+            SmallOutlinedTextField(
+                value = uiState.burnerPower,
+                onValueChange = { viewModel.updateBurnerPower(it) },
+                label = "Burner Power",
+                supporting = "(besaran tekanan api)",
+                keyboardType = KeyboardType.Number,
+                modifier = Modifier.fillMaxWidth()
             )
 
-            OutlinedTextField(
-                value = uiState.intervalSeconds,
-                onValueChange = { viewModel.updateIntervalSeconds(it) },
-                label = { Text("Interval Input Suhu (detik)") },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                enabled = !uiState.isTimerRunning
+            SmallOutlinedTextField(
+                value = uiState.ror,
+                onValueChange = { viewModel.updateRor(it) },
+                label = "ROR",
+                supporting = "(kenaikan suhu bean per menit)",
+                keyboardType = KeyboardType.Decimal,
+                modifier = Modifier.fillMaxWidth()
             )
-
-            OutlinedTextField(
-                value = uiState.startTemperature,
-                onValueChange = { viewModel.updateStartTemperature(it) },
-                label = { Text("Suhu Awal (°C)") },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true,
-                enabled = !uiState.isTimerRunning,
-                supportingText = { Text("Range: 70°C - 240°C") }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             val chartData = viewModel.getChartData()
             val intervalSeconds = uiState.intervalSeconds.toIntOrNull() ?: 60
@@ -401,6 +362,57 @@ fun RoastingFormScreen(
                 ChartSection(data = chartData, intervalSeconds = intervalSeconds)
                 Spacer(modifier = Modifier.height(16.dp))
             }
+
+            // Card with Duration, Interval, Start Temp inputs
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Pengaturan Timer",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SmallOutlinedTextField(
+                            value = uiState.targetDuration,
+                            onValueChange = { viewModel.updateTargetDuration(it) },
+                            label = "Durasi (m)",
+                            keyboardType = KeyboardType.Number,
+                            modifier = Modifier.weight(1f)
+                        )
+                        SmallOutlinedTextField(
+                            value = uiState.intervalSeconds,
+                            onValueChange = { viewModel.updateIntervalSeconds(it) },
+                            label = "Interval (s)",
+                            keyboardType = KeyboardType.Number,
+                            modifier = Modifier.weight(1f)
+                        )
+                        SmallOutlinedTextField(
+                            value = uiState.startTemperature,
+                            onValueChange = { viewModel.updateStartTemperature(it) },
+                            label = "Suhu (°C)",
+                            keyboardType = KeyboardType.Decimal,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             TimerSection(
                 elapsedSeconds = uiState.elapsedSeconds,
@@ -417,57 +429,60 @@ fun RoastingFormScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             val scope = rememberCoroutineScope()
-            
-            Button(
-                onClick = { showRevisionDialog = true },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = uiState.temperatureData.isNotEmpty() && !uiState.isTimerRunning
-            ) {
-                Text("Revisi Suhu")
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Row {
+                Button(
+                    onClick = { showRevisionDialog = true },
+                    modifier = Modifier.weight(1f),
+                    enabled = uiState.temperatureData.isNotEmpty() && !uiState.isTimerRunning
+                ) {
+                    Text("Revisi Suhu")
+                }
 
-            Button(
-                onClick = {
-                    if (!isExporting) {
-                        scope.launch {
-                            val result = exportToPdf()
-                            if (result != null) {
-                                snackbarHostState.showSnackbar(
-                                    message = "PDF berhasil diekspor ke: $result",
-                                    duration = SnackbarDuration.Long
-                                )
-                            } else {
-                                snackbarHostState.showSnackbar(
-                                    message = "Gagal mengekspor PDF",
-                                    duration = SnackbarDuration.Short
-                                )
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Button(
+                    onClick = {
+                        if (!isExporting) {
+                            scope.launch {
+                                val result = exportToPdf()
+                                if (result != null) {
+                                    snackbarHostState.showSnackbar(
+                                        message = "PDF berhasil diekspor ke: $result",
+                                        duration = SnackbarDuration.Long
+                                    )
+                                } else {
+                                    snackbarHostState.showSnackbar(
+                                        message = "Gagal mengekspor PDF",
+                                        duration = SnackbarDuration.Short
+                                    )
+                                }
                             }
                         }
+                    },
+                    modifier = Modifier.weight(1f),
+                    enabled = !isExporting && uiState.temperatureData.isNotEmpty()
+                ) {
+                    if (isExporting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Mengekspor...")
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.PictureAsPdf,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Export PDF")
                     }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isExporting && uiState.temperatureData.isNotEmpty()
-            ) {
-                if (isExporting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Mengekspor...")
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.PictureAsPdf,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Export PDF")
                 }
             }
+
         }
 
         if (showRevisionDialog) {
@@ -920,6 +935,70 @@ private fun formatIntervalLabel(interval: Int, intervalSeconds: Int): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return String.format(Locale.getDefault(), "%d.%02d", minutes, seconds)
+}
+
+@Composable
+private fun SmallOutlinedTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    supporting: String? = null
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    
+    LaunchedEffect(interactionSource) {
+        interactionSource.interactions.collect { interaction ->
+            when (interaction) {
+                is androidx.compose.foundation.interaction.FocusInteraction.Focus -> isFocused = true
+                is androidx.compose.foundation.interaction.FocusInteraction.Unfocus -> isFocused = false
+            }
+        }
+    }
+    
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = if (isFocused) 4.dp else 1.dp,
+        tonalElevation = if (isFocused) 4.dp else 1.dp,
+        shape = MaterialTheme.shapes.small,
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                textStyle = MaterialTheme.typography.bodyMedium.merge(
+                    TextStyle(color = MaterialTheme.colorScheme.onSurface)
+                ),
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                singleLine = true,
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                interactionSource = interactionSource,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+    
+    supporting?.let {
+        Text(
+            text = it,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, top = 2.dp)
+        )
+    }
 }
 
 @Composable
