@@ -19,6 +19,21 @@ data class RoastingFormState(
     val weightOut: String = "",
     val roastType: String = "Medium",
     val isRoastTypeExpanded: Boolean = false,
+    // Time & Temperature
+    val chargeTimeTemp: String = "", // Charge Time (°C)
+    val endTimeTemp: String = "", // End Time (°C)
+    val roastTime: String = "", // Roast Time (menit)
+    val devTime: String = "", // Dev Time (menit)
+    // Event Suhu
+    val turnPoint: String = "", // Turn Point (°C)
+    val yellowing: String = "", // Yellowing (°C)
+    val firstCrack: String = "", // First Crack (°C)
+    // Parameter Mesin
+    val airFlowPower: String = "", // Air Flow Power
+    val rpmDrum: String = "", // RPM Drum
+    val burnerPower: String = "", // Burner Power
+    val ror: String = "", // ROR (Rate of Rise)
+    // Timer & Chart
     val targetDuration: String = "", // in minutes
     val intervalSeconds: String = "60", // default 60 seconds
     val startTemperature: String = "", // initial temperature
@@ -73,27 +88,78 @@ class RoastingViewModel : ViewModel() {
         _uiState.update { it.copy(isRoastTypeExpanded = expanded) }
     }
 
+    // Time & Temperature
+    fun updateChargeTimeTemp(value: String) {
+        _uiState.update { it.copy(chargeTimeTemp = filterDecimal(value)) }
+    }
+
+    fun updateEndTimeTemp(value: String) {
+        _uiState.update { it.copy(endTimeTemp = filterDecimal(value)) }
+    }
+
+    fun updateRoastTime(value: String) {
+        _uiState.update { it.copy(roastTime = filterDigits(value)) }
+    }
+
+    fun updateDevTime(value: String) {
+        _uiState.update { it.copy(devTime = filterDigits(value)) }
+    }
+
+    // Event Suhu
+    fun updateTurnPoint(value: String) {
+        _uiState.update { it.copy(turnPoint = filterDecimal(value)) }
+    }
+
+    fun updateYellowing(value: String) {
+        _uiState.update { it.copy(yellowing = filterDecimal(value)) }
+    }
+
+    fun updateFirstCrack(value: String) {
+        _uiState.update { it.copy(firstCrack = filterDecimal(value)) }
+    }
+
+    // Parameter Mesin
+    fun updateAirFlowPower(value: String) {
+        _uiState.update { it.copy(airFlowPower = filterDigits(value)) }
+    }
+
+    fun updateRpmDrum(value: String) {
+        _uiState.update { it.copy(rpmDrum = filterDigits(value)) }
+    }
+
+    fun updateBurnerPower(value: String) {
+        _uiState.update { it.copy(burnerPower = filterDigits(value)) }
+    }
+
+    fun updateRor(value: String) {
+        _uiState.update { it.copy(ror = filterDecimal(value)) }
+    }
+
+    // Timer
     fun updateTargetDuration(value: String) {
-        val filtered = value.filter { it.isDigit() }
-        _uiState.update { it.copy(targetDuration = filtered) }
+        _uiState.update { it.copy(targetDuration = filterDigits(value)) }
     }
 
     fun updateIntervalSeconds(value: String) {
-        val filtered = value.filter { it.isDigit() }
-        _uiState.update { it.copy(intervalSeconds = filtered) }
+        _uiState.update { it.copy(intervalSeconds = filterDigits(value)) }
     }
 
     fun updateStartTemperature(value: String) {
-        // Allow digits and one decimal point
-        val filtered = value.filter { it.isDigit() || it == '.' }
+        _uiState.update { it.copy(startTemperature = filterDecimal(value)) }
+    }
+
+    private fun filterDigits(value: String): String {
+        return value.filter { it.isDigit() }
+    }
+
+    private fun filterDecimal(value: String): String {
+        return value.filter { it.isDigit() || it == '.' }
             .let { text ->
-                // Ensure only one decimal point
                 val firstDot = text.indexOf('.')
                 if (firstDot == -1) text
                 else text.substring(0, firstDot + 1) +
                      text.substring(firstDot + 1).replace(".", "")
             }
-        _uiState.update { it.copy(startTemperature = filtered) }
     }
 
     fun getChartData(): List<ChartDataPoint> {
@@ -106,7 +172,6 @@ class RoastingViewModel : ViewModel() {
         val totalSeconds = duration * 60
         val maxIntervals = totalSeconds / interval
 
-        // Create data points for each interval
         val points = (0..maxIntervals).map { intervalNum ->
             val secondsAtThisInterval = intervalNum * interval
             ChartDataPoint(
@@ -116,7 +181,6 @@ class RoastingViewModel : ViewModel() {
             )
         }.toMutableList()
 
-        // Add start temperature at interval 0 if not already set
         val startTemp = state.startTemperature.toFloatOrNull()
         if (startTemp != null && points.isNotEmpty() && points[0].temperature == null) {
             points[0] = points[0].copy(temperature = startTemp)
@@ -141,7 +205,6 @@ class RoastingViewModel : ViewModel() {
 
         val totalSeconds = duration * 60
 
-        // Add start temperature as first data point
         _uiState.update { currentState ->
             val newData = currentState.temperatureData + Pair(0, startTemp)
             currentState.copy(temperatureData = newData)

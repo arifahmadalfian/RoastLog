@@ -14,13 +14,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -31,8 +31,12 @@ import com.indie.roastlog.speech.VoiceRecognizerManager
 import com.indie.roastlog.viewmodel.RoastingViewModel
 import com.indie.roastlog.ui.components.RoastingChart
 import com.indie.roastlog.ui.components.ChartDataPoint
+import com.indie.roastlog.pdf.PdfExportManager
+import com.indie.roastlog.pdf.RoastSessionData
+import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,6 +49,10 @@ fun RoastingFormScreen(
 
     val voiceRecognizer = remember { VoiceRecognizerManager(context) }
     val voiceState by voiceRecognizer.state.collectAsState()
+
+    // Snackbar for showing export status
+    val snackbarHostState = remember { SnackbarHostState() }
+    var isExporting by remember { mutableStateOf(false) }
 
     var hasAudioPermission by remember {
         mutableStateOf(
@@ -72,197 +80,416 @@ fun RoastingFormScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text(
-            text = "Roasting Form",
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        OutlinedTextField(
-            value = uiState.beanType,
-            onValueChange = { viewModel.updateBeanType(it) },
-            label = { Text("Jenis Bean") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
-        )
-
-        OutlinedTextField(
-            value = uiState.waterContent,
-            onValueChange = { viewModel.updateWaterContent(it) },
-            label = { Text("Kadar Air (%)") },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true
-        )
-
-        OutlinedTextField(
-            value = uiState.density,
-            onValueChange = { viewModel.updateDensity(it) },
-            label = { Text("Density (kg/l)") },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true
-        )
-
-        OutlinedTextField(
-            value = uiState.weightIn,
-            onValueChange = { viewModel.updateWeightIn(it) },
-            label = { Text("Berat Masuk (gram)") },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true
-        )
-
-        OutlinedTextField(
-            value = uiState.weightOut,
-            onValueChange = { viewModel.updateWeightOut(it) },
-            label = { Text("Berat Keluar (gram)") },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true
-        )
-
-        ExposedDropdownMenuBox(
-            expanded = uiState.isRoastTypeExpanded,
-            onExpandedChange = { viewModel.toggleRoastTypeExpanded(it) },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            OutlinedTextField(
-                value = uiState.roastType,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Roast Type") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = uiState.isRoastTypeExpanded) },
-                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                modifier = Modifier
-                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                    .fillMaxWidth()
-            )
-
-            ExposedDropdownMenu(
-                expanded = uiState.isRoastTypeExpanded,
-                onDismissRequest = { viewModel.toggleRoastTypeExpanded(false) }
-            ) {
-                roastTypes.forEach { selectionOption ->
-                    DropdownMenuItem(
-                        text = { Text(selectionOption) },
-                        onClick = {
-                            viewModel.updateRoastType(selectionOption)
-                        },
-                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
-                    )
-                }
-            }
-        }
-
-        OutlinedTextField(
-            value = uiState.targetDuration,
-            onValueChange = { viewModel.updateTargetDuration(it) },
-            label = { Text("Durasi Roasting (menit)") },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
-            enabled = !uiState.isTimerRunning
-        )
-
-        OutlinedTextField(
-            value = uiState.intervalSeconds,
-            onValueChange = { viewModel.updateIntervalSeconds(it) },
-            label = { Text("Interval Input Suhu (detik)") },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
-            enabled = !uiState.isTimerRunning
-        )
-
-        OutlinedTextField(
-            value = uiState.startTemperature,
-            onValueChange = { viewModel.updateStartTemperature(it) },
-            label = { Text("Suhu Awal (°C)") },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true,
-            enabled = !uiState.isTimerRunning,
-            supportingText = { Text("Range: 70°C - 240°C") }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        val chartData = viewModel.getChartData()
-        val intervalSeconds = uiState.intervalSeconds.toIntOrNull() ?: 60
-        if (chartData.isNotEmpty()) {
-            ChartSection(data = chartData, intervalSeconds = intervalSeconds)
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        TimerSection(
-            elapsedSeconds = uiState.elapsedSeconds,
-            isRunning = uiState.isTimerRunning,
-            canStart = uiState.canStartTimer(),
+    // PDF export function
+    val exportToPdf = suspend {
+        isExporting = true
+        val pdfManager = PdfExportManager(context)
+        val roastData = RoastSessionData(
+            beanType = uiState.beanType,
+            waterContent = uiState.waterContent,
+            density = uiState.density,
+            weightIn = uiState.weightIn,
+            weightOut = uiState.weightOut,
+            roastType = uiState.roastType,
+            // Time & Temperature
+            chargeTimeTemp = uiState.chargeTimeTemp,
+            endTimeTemp = uiState.endTimeTemp,
+            roastTime = uiState.roastTime,
+            devTime = uiState.devTime,
+            // Event Suhu
+            turnPoint = uiState.turnPoint,
+            yellowing = uiState.yellowing,
+            firstCrack = uiState.firstCrack,
+            // Parameter Mesin
+            airFlowPower = uiState.airFlowPower,
+            rpmDrum = uiState.rpmDrum,
+            burnerPower = uiState.burnerPower,
+            ror = uiState.ror,
+            // Timer & Chart
             targetDuration = uiState.targetDuration.toIntOrNull() ?: 0,
             intervalSeconds = uiState.intervalSeconds.toIntOrNull() ?: 60,
-            startTemperature = uiState.startTemperature.toFloatOrNull(),
-            onStartClick = { viewModel.startTimer() },
-            onStopClick = { viewModel.stopTimer() },
-            onResetClick = { viewModel.resetTimer() }
+            startTemperature = uiState.startTemperature.toFloatOrNull() ?: 70f,
+            temperatureData = uiState.temperatureData
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = { /* TODO: Implement save or next */ },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Simpan Data")
-        }
+        val result = pdfManager.exportRoastSessionToPdf(roastData)
+        isExporting = false
+        result
     }
 
-    if (uiState.showTemperatureDialog) {
-        val interval = uiState.intervalSeconds.toIntOrNull() ?: 60
-        val currentTimeSeconds = uiState.currentInterval * interval
-        val currentMinute = currentTimeSeconds / 60
-        val currentSecond = currentTimeSeconds % 60
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Roasting Form",
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
 
-        TemperatureInputDialog(
-            intervalNumber = uiState.currentInterval,
-            elapsedTime = String.format(Locale.getDefault(), "%02d:%02d", currentMinute, currentSecond),
-            voiceState = voiceState,
-            hasAudioPermission = hasAudioPermission,
-            onDismiss = {
-                voiceRecognizer.stopListening()
-                viewModel.dismissTemperatureDialog()
-            },
-            onConfirm = { temperature ->
-                voiceRecognizer.stopListening()
-                viewModel.addTemperature(temperature)
-            },
-            onStartVoiceInput = {
-                if (hasAudioPermission) {
+            OutlinedTextField(
+                value = uiState.beanType,
+                onValueChange = { viewModel.updateBeanType(it) },
+                label = { Text("Jenis Bean") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
+            OutlinedTextField(
+                value = uiState.waterContent,
+                onValueChange = { viewModel.updateWaterContent(it) },
+                label = { Text("Kadar Air (%)") },
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true
+            )
+
+            OutlinedTextField(
+                value = uiState.density,
+                onValueChange = { viewModel.updateDensity(it) },
+                label = { Text("Density (kg/l)") },
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true
+            )
+
+            OutlinedTextField(
+                value = uiState.weightIn,
+                onValueChange = { viewModel.updateWeightIn(it) },
+                label = { Text("Berat Masuk (gram)") },
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true
+            )
+
+            OutlinedTextField(
+                value = uiState.weightOut,
+                onValueChange = { viewModel.updateWeightOut(it) },
+                label = { Text("Berat Keluar (gram)") },
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true
+            )
+
+            ExposedDropdownMenuBox(
+                expanded = uiState.isRoastTypeExpanded,
+                onExpandedChange = { viewModel.toggleRoastTypeExpanded(it) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = uiState.roastType,
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Roast Type") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = uiState.isRoastTypeExpanded) },
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                    modifier = Modifier
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                        .fillMaxWidth()
+                )
+
+                ExposedDropdownMenu(
+                    expanded = uiState.isRoastTypeExpanded,
+                    onDismissRequest = { viewModel.toggleRoastTypeExpanded(false) }
+                ) {
+                    roastTypes.forEach { selectionOption ->
+                        DropdownMenuItem(
+                            text = { Text(selectionOption) },
+                            onClick = {
+                                viewModel.updateRoastType(selectionOption)
+                            },
+                            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                        )
+                    }
+                }
+            }
+
+            // Section: Time & Temperature
+            Text(
+                text = "Time & Temperature",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = uiState.chargeTimeTemp,
+                    onValueChange = { viewModel.updateChargeTimeTemp(it) },
+                    label = { Text("Charge Time (°C)") },
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = uiState.endTimeTemp,
+                    onValueChange = { viewModel.updateEndTimeTemp(it) },
+                    label = { Text("End Time (°C)") },
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = uiState.roastTime,
+                    onValueChange = { viewModel.updateRoastTime(it) },
+                    label = { Text("Roast Time (menit)") },
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = uiState.devTime,
+                    onValueChange = { viewModel.updateDevTime(it) },
+                    label = { Text("Dev Time (menit)") },
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+            }
+
+            // Section: Event Suhu
+            Text(
+                text = "Event Suhu",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = uiState.turnPoint,
+                    onValueChange = { viewModel.updateTurnPoint(it) },
+                    label = { Text("Turn Point (°C)") },
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = uiState.yellowing,
+                    onValueChange = { viewModel.updateYellowing(it) },
+                    label = { Text("Yellowing (°C)") },
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true
+                )
+            }
+
+            OutlinedTextField(
+                value = uiState.firstCrack,
+                onValueChange = { viewModel.updateFirstCrack(it) },
+                label = { Text("First Crack (°C)") },
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true
+            )
+
+            // Section: Parameter Mesin
+            Text(
+                text = "Parameter Mesin",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = uiState.airFlowPower,
+                    onValueChange = { viewModel.updateAirFlowPower(it) },
+                    label = { Text("Air Flow Power") },
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = uiState.rpmDrum,
+                    onValueChange = { viewModel.updateRpmDrum(it) },
+                    label = { Text("RPM Drum") },
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = uiState.burnerPower,
+                    onValueChange = { viewModel.updateBurnerPower(it) },
+                    label = { Text("Burner Power") },
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = uiState.ror,
+                    onValueChange = { viewModel.updateRor(it) },
+                    label = { Text("ROR") },
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true
+                )
+            }
+
+            OutlinedTextField(
+                value = uiState.targetDuration,
+                onValueChange = { viewModel.updateTargetDuration(it) },
+                label = { Text("Durasi Roasting (menit)") },
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                enabled = !uiState.isTimerRunning
+            )
+
+            OutlinedTextField(
+                value = uiState.intervalSeconds,
+                onValueChange = { viewModel.updateIntervalSeconds(it) },
+                label = { Text("Interval Input Suhu (detik)") },
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                enabled = !uiState.isTimerRunning
+            )
+
+            OutlinedTextField(
+                value = uiState.startTemperature,
+                onValueChange = { viewModel.updateStartTemperature(it) },
+                label = { Text("Suhu Awal (°C)") },
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true,
+                enabled = !uiState.isTimerRunning,
+                supportingText = { Text("Range: 70°C - 240°C") }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            val chartData = viewModel.getChartData()
+            val intervalSeconds = uiState.intervalSeconds.toIntOrNull() ?: 60
+            if (chartData.isNotEmpty()) {
+                ChartSection(data = chartData, intervalSeconds = intervalSeconds)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            TimerSection(
+                elapsedSeconds = uiState.elapsedSeconds,
+                isRunning = uiState.isTimerRunning,
+                canStart = uiState.canStartTimer(),
+                targetDuration = uiState.targetDuration.toIntOrNull() ?: 0,
+                intervalSeconds = uiState.intervalSeconds.toIntOrNull() ?: 60,
+                startTemperature = uiState.startTemperature.toFloatOrNull(),
+                onStartClick = { viewModel.startTimer() },
+                onStopClick = { viewModel.stopTimer() },
+                onResetClick = { viewModel.resetTimer() }
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            val scope = rememberCoroutineScope()
+            
+            Button(
+                onClick = {
+                    if (!isExporting) {
+                        scope.launch {
+                            val result = exportToPdf()
+                            if (result != null) {
+                                snackbarHostState.showSnackbar(
+                                    message = "PDF berhasil diekspor ke: $result",
+                                    duration = SnackbarDuration.Long
+                                )
+                            } else {
+                                snackbarHostState.showSnackbar(
+                                    message = "Gagal mengekspor PDF",
+                                    duration = SnackbarDuration.Short
+                                )
+                            }
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isExporting && uiState.temperatureData.isNotEmpty()
+            ) {
+                if (isExporting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Mengekspor...")
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.PictureAsPdf,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Export PDF")
+                }
+            }
+        }
+
+        if (uiState.showTemperatureDialog) {
+            val interval = uiState.intervalSeconds.toIntOrNull() ?: 60
+            val currentTimeSeconds = uiState.currentInterval * interval
+            val currentMinute = currentTimeSeconds / 60
+            val currentSecond = currentTimeSeconds % 60
+
+            TemperatureInputDialog(
+                intervalNumber = uiState.currentInterval,
+                elapsedTime = String.format(Locale.getDefault(), "%02d:%02d", currentMinute, currentSecond),
+                voiceState = voiceState,
+                hasAudioPermission = hasAudioPermission,
+                onDismiss = {
+                    voiceRecognizer.stopListening()
+                    viewModel.dismissTemperatureDialog()
+                },
+                onConfirm = { temperature ->
+                    voiceRecognizer.stopListening()
+                    viewModel.addTemperature(temperature)
+                },
+                onStartVoiceInput = {
+                    if (hasAudioPermission) {
+                        voiceRecognizer.resetState()
+                        voiceRecognizer.startListening(context)
+                    } else {
+                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                },
+                autoStartVoice = hasAudioPermission,
+                onAutoStartVoice = {
                     voiceRecognizer.resetState()
                     voiceRecognizer.startListening(context)
-                } else {
-                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                },
+                onAutoConfirm = { temperature ->
+                    voiceRecognizer.stopListening()
+                    viewModel.addTemperature(temperature)
                 }
-            },
-            // Auto-start voice when dialog appears
-            autoStartVoice = hasAudioPermission,
-            onAutoStartVoice = {
-                voiceRecognizer.resetState()
-                voiceRecognizer.startListening(context)
-            },
-            // Auto-confirm after successful voice input
-            onAutoConfirm = { temperature ->
-                voiceRecognizer.stopListening()
-                viewModel.addTemperature(temperature)
-            }
-        )
+            )
+        }
     }
 }
 
@@ -397,7 +624,7 @@ private fun ChartSection(
                 intervalSeconds = intervalSeconds,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(250.dp)
+                    .height(300.dp)
             )
         }
     }
@@ -424,7 +651,6 @@ private fun TemperatureInputDialog(
     var hasAutoConfirmed by remember { mutableStateOf(false) }
     var hasPlayedSound by remember { mutableStateOf(false) }
 
-    // Play notification sound when dialog appears
     LaunchedEffect(Unit) {
         if (!hasPlayedSound) {
             hasPlayedSound = true
@@ -438,15 +664,13 @@ private fun TemperatureInputDialog(
         }
     }
 
-    // Auto-start voice recognition when dialog appears
     LaunchedEffect(Unit) {
         if (autoStartVoice && !hasAutoConfirmed) {
-            delay(600) // Delay after sound to ensure dialog is fully shown
+            delay(600)
             onAutoStartVoice()
         }
     }
 
-    // Handle voice state changes - auto-confirm on success
     LaunchedEffect(voiceState) {
         when (voiceState) {
             is VoiceRecognitionState.Success -> {
@@ -454,27 +678,23 @@ private fun TemperatureInputDialog(
                 isError = false
                 errorMessage = ""
                 
-                // Auto-confirm after successful voice input with a small delay
                 if (!hasAutoConfirmed) {
                     hasAutoConfirmed = true
-                    delay(600) // Give user time to see the recognized number
+                    delay(600)
                     onAutoConfirm(voiceState.number)
                 }
             }
             is VoiceRecognitionState.Error -> {
-                // Don't show error immediately - only after user has had a chance to speak
                 if (voiceState.message != "Tidak ada hasil") {
                     isError = true
                     errorMessage = voiceState.message
                 }
-                // Restart voice recognition after error if we have permission
                 if (autoStartVoice && hasAudioPermission && !hasAutoConfirmed) {
                     delay(800)
                     onAutoStartVoice()
                 }
             }
             else -> {
-                // Clear error when idle or listening
                 isError = false
                 errorMessage = ""
             }
@@ -490,7 +710,6 @@ private fun TemperatureInputDialog(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Listening Animation
                 if (voiceState is VoiceRecognitionState.Listening) {
                     ListeningAnimation()
                     Spacer(modifier = Modifier.height(8.dp))
@@ -579,7 +798,6 @@ private fun TemperatureInputDialog(
 private fun ListeningAnimation() {
     val infiniteTransition = rememberInfiniteTransition(label = "listening")
     
-    // Multiple pulsing circles
     val scales = List(3) { index ->
         infiniteTransition.animateFloat(
             initialValue = 0.6f,
@@ -606,7 +824,6 @@ private fun ListeningAnimation() {
         modifier = Modifier.size(80.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Pulsing circles
         scales.forEachIndexed { index, scale ->
             Box(
                 modifier = Modifier
@@ -620,7 +837,6 @@ private fun ListeningAnimation() {
             )
         }
         
-        // Center icon
         Icon(
             imageVector = Icons.Default.Mic,
             contentDescription = null,

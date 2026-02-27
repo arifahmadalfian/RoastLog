@@ -46,6 +46,7 @@ dependencies {
     implementation(libs.mpandroidchart)
     implementation(libs.androidx.activity.compose)
     implementation(libs.material.icons.extended)
+    implementation("com.itextpdf:itext7-core:8.0.2")
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
@@ -57,5 +58,5 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    debugImplementation(libs.androidx.compose.ui.tooling.preview)
 }
