@@ -122,7 +122,7 @@ fun RoastingFormScreen(
             targetDuration = uiState.targetDuration.toIntOrNull() ?: 0,
             intervalSeconds = uiState.intervalSeconds.toIntOrNull() ?: 60,
             burnerIntervalSeconds = uiState.burnerIntervalSeconds.toIntOrNull() ?: 210,
-            startTemperature = uiState.startTemperature.toFloatOrNull() ?: 70f,
+            startTemperature = uiState.chargeTimeTemp.toFloatOrNull() ?: 70f,
             temperatureData = uiState.intervalDataList.map { Pair(it.intervalNumber, it.temperature) }
         )
 
@@ -323,7 +323,7 @@ fun RoastingFormScreen(
 
             HorizontalDivider()
 
-            // Card with Duration, Interval, Start Temp inputs
+            // Card with Duration, Interval inputs
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -359,13 +359,6 @@ fun RoastingFormScreen(
                             onValueChange = { viewModel.updateIntervalSeconds(it) },
                             label = "Interval Suhu (s)",
                             keyboardType = KeyboardType.Number,
-                            modifier = Modifier.weight(1f)
-                        )
-                        SmallOutlinedTextField(
-                            value = uiState.startTemperature,
-                            onValueChange = { viewModel.updateStartTemperature(it) },
-                            label = "Suhu (°C)",
-                            keyboardType = KeyboardType.Decimal,
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -475,13 +468,12 @@ fun RoastingFormScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-//            SmallOutlinedTextField(
-//                value = uiState.ror,
-//                onValueChange = { viewModel.updateRor(it) },
-//                label = "ROR (kenaikan suhu bean per menit)",
-//                keyboardType = KeyboardType.Decimal,
-//                modifier = Modifier.fillMaxWidth()
-//            )
+            IncrementDecrementField(
+                value = uiState.rpmDrum,
+                onValueChange = { viewModel.updateRpmDrum(it) },
+                label = "RPM Drum (kecepatan putaran drum)",
+                modifier = Modifier.fillMaxWidth()
+            )
 
             TimerSection(
                 elapsedSeconds = uiState.elapsedSeconds,
@@ -916,7 +908,7 @@ private fun TimerSection(
             }
             if (!canStart && !isRunning) {
                 Text(
-                    text = "Masukkan durasi, interval, dan suhu awal (70-240°C)",
+                    text = "Masukkan durasi, interval, dan Charge Time (70-240°C)",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -1143,7 +1135,8 @@ private fun SmallOutlinedTextField(
     onValueChange: (String) -> Unit,
     label: String,
     modifier: Modifier = Modifier,
-    keyboardType: KeyboardType = KeyboardType.Text
+    keyboardType: KeyboardType = KeyboardType.Text,
+    enabled: Boolean = true,
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }

@@ -28,7 +28,7 @@ data class RoastingFormState(
     val roastType: String = "Medium",
     val isRoastTypeExpanded: Boolean = false,
     // Time & Temperature
-    val chargeTimeTemp: String = "", // Charge Time (°C)
+    val chargeTimeTemp: String = "220", // Charge Time (°C)
     val endTimeTemp: String = "", // End Time (°C)
     val roastTime: String = "", // Roast Time (menit)
     val devTime: String = "", // Dev Time (menit)
@@ -63,7 +63,7 @@ data class RoastingFormState(
     fun canStartTimer(): Boolean {
         val duration = targetDuration.toIntOrNull()
         val interval = intervalSeconds.toIntOrNull()
-        val startTemp = startTemperature.toFloatOrNull()
+        val startTemp = chargeTimeTemp.toFloatOrNull()
         return duration != null && duration > 0 &&
                interval != null && interval > 0 &&
                startTemp != null && startTemp >= 70 && startTemp <= 240
@@ -232,7 +232,7 @@ class RoastingViewModel : ViewModel() {
             )
         }.toMutableList()
 
-        val startTemp = state.startTemperature.toFloatOrNull()
+        val startTemp = state.chargeTimeTemp.toFloatOrNull()
         if (startTemp != null && points.isNotEmpty() && points[0].temperature == null) {
             points[0] = points[0].copy(temperature = startTemp)
         }
@@ -247,7 +247,7 @@ class RoastingViewModel : ViewModel() {
         val duration = state.targetDuration.toIntOrNull()
         val interval = state.intervalSeconds.toIntOrNull()
         val burnerInterval = state.burnerIntervalSeconds.toIntOrNull()
-        val startTemp = state.startTemperature.toFloatOrNull()
+        val startTemp = state.chargeTimeTemp.toFloatOrNull()
         if (duration == null || duration <= 0 ||
             interval == null || interval <= 0 ||
             startTemp == null || startTemp < 70 || startTemp > 240) return
