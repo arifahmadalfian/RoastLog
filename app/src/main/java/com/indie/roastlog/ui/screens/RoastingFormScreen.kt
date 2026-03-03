@@ -121,7 +121,7 @@ fun RoastingFormScreen(
             targetDuration = uiState.targetDuration.toIntOrNull() ?: 0,
             intervalSeconds = uiState.intervalSeconds.toIntOrNull() ?: 60,
             startTemperature = uiState.startTemperature.toFloatOrNull() ?: 70f,
-            temperatureData = uiState.temperatureData
+            temperatureData = uiState.intervalDataList.map { Pair(it.intervalNumber, it.temperature) }
         )
 
         val result = pdfManager.exportRoastSessionToPdf(roastData)
@@ -426,7 +426,7 @@ fun RoastingFormScreen(
                 Button(
                     onClick = { showRevisionDialog = true },
                     modifier = Modifier.weight(1f),
-                    enabled = uiState.temperatureData.isNotEmpty()
+                    enabled = uiState.intervalDataList.isNotEmpty()
                 ) {
                     Text("Revisi Suhu")
                 }
@@ -453,7 +453,7 @@ fun RoastingFormScreen(
                         }
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = !isExporting && uiState.temperatureData.isNotEmpty()
+                    enabled = !isExporting && uiState.intervalDataList.isNotEmpty()
                 ) {
                     if (isExporting) {
                         CircularProgressIndicator(
@@ -479,13 +479,13 @@ fun RoastingFormScreen(
 
         if (showRevisionDialog) {
             val intervalSeconds = uiState.intervalSeconds.toIntOrNull() ?: 60
-            val sortedIntervals = uiState.temperatureData.map { it.first }.distinct().sorted()
+            val sortedIntervals = uiState.intervalDataList.map { it.intervalNumber }.distinct().sorted()
 
             LaunchedEffect(sortedIntervals) {
                 if (selectedRevisionInterval == null && sortedIntervals.isNotEmpty()) {
                     val firstInterval = sortedIntervals.first()
                     selectedRevisionInterval = firstInterval
-                    val currentTemp = uiState.temperatureData.firstOrNull { it.first == firstInterval }?.second
+                    val currentTemp = uiState.intervalDataList.firstOrNull { it.intervalNumber == firstInterval }?.temperature
                     revisionTemperatureInput = currentTemp?.toString() ?: ""
                 }
             }
@@ -526,7 +526,7 @@ fun RoastingFormScreen(
                                         text = { Text(label) },
                                         onClick = {
                                             selectedRevisionInterval = interval
-                                            val currentTemp = uiState.temperatureData.firstOrNull { it.first == interval }?.second
+                                            val currentTemp = uiState.intervalDataList.firstOrNull { it.intervalNumber == interval }?.temperature
                                             revisionTemperatureInput = currentTemp?.toString() ?: ""
                                             revisionDropdownExpanded = false
                                         }

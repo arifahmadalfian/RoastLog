@@ -11,6 +11,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+data class IntervalData(
+    val intervalNumber: Int,
+    val temperature: Float,
+    val airFlowPower: String = "",
+    val rpmDrum: String = "",
+    val burnerPower: String = ""
+)
+
 data class RoastingFormState(
     val beanType: String = "",
     val waterContent: String = "",
@@ -39,7 +47,7 @@ data class RoastingFormState(
     val startTemperature: String = "70", // default 70°C
     val elapsedSeconds: Int = 0,
     val isTimerRunning: Boolean = false,
-    val temperatureData: List<Pair<Int, Float>> = emptyList(),
+    val intervalDataList: List<IntervalData> = emptyList(),
     val showTemperatureDialog: Boolean = false,
     val currentInterval: Int = 0 // which interval we're currently at
 ) {
@@ -168,16 +176,17 @@ class RoastingViewModel : ViewModel() {
         val interval = state.intervalSeconds.toIntOrNull() ?: 60
         if (duration <= 0 || interval <= 0) return emptyList()
 
-        val dataMap = state.temperatureData.toMap()
+        val dataMap = state.intervalDataList.associateBy { it.intervalNumber }
         val totalSeconds = duration * 60
         val maxIntervals = totalSeconds / interval
 
         val points = (0..maxIntervals).map { intervalNum ->
             val secondsAtThisInterval = intervalNum * interval
+            val intervalData = dataMap[intervalNum]
             
             // Calculate ROR: temperature difference from previous interval
-            val currentTemp = dataMap[intervalNum]
-            val prevTemp = if (intervalNum > 0) dataMap[intervalNum - 1] else null
+            val currentTemp = intervalData?.temperature
+            val prevTemp = if (intervalNum > 0) dataMap[intervalNum - 1]?.temperature else null
             val rorValue = if (intervalNum > 0 && currentTemp != null && prevTemp != null) {
                 currentTemp - prevTemp
             } else {
@@ -188,7 +197,10 @@ class RoastingViewModel : ViewModel() {
                 intervalNumber = intervalNum,
                 totalSeconds = secondsAtThisInterval,
                 temperature = currentTemp,
-                ror = rorValue
+                ror = rorValue,
+                airFlowPower = intervalData?.airFlowPower ?: "",
+                rpmDrum = intervalData?.rpmDrum ?: "",
+                burnerPower = intervalData?.burnerPower ?: ""
             )
         }.toMutableList()
 
@@ -217,8 +229,14 @@ class RoastingViewModel : ViewModel() {
         val totalSeconds = duration * 60
 
         _uiState.update { currentState ->
-            val newData = currentState.temperatureData + Pair(0, startTemp)
-            currentState.copy(temperatureData = newData)
+            val newData = currentState.intervalDataList + IntervalData(
+                intervalNumber = 0,
+                temperature = startTemp,
+                airFlowPower = currentState.airFlowPower,
+                rpmDrum = currentState.rpmDrum,
+                burnerPower = currentState.burnerPower
+            )
+            currentState.copy(intervalDataList = newData)
         }
 
         timerJob = viewModelScope.launch {
@@ -262,7 +280,7 @@ class RoastingViewModel : ViewModel() {
     fun resetTimer() {
         stopTimer()
         lastInterval = 0
-        _uiState.update { it.copy(elapsedSeconds = 0, temperatureData = emptyList()) }
+        _uiState.update { it.copy(elapsedSeconds = 0, intervalDataList = emptyList()) }
     }
 
     private fun onIntervalPassed(interval: Int) {
@@ -296,7 +314,14 @@ class RoastingViewModel : ViewModel() {
             val totalSeconds = currentState.targetDuration.toIntOrNull()?.times(60) ?: 0
             val shouldStopTimer = currentState.elapsedSeconds >= totalSeconds && totalSeconds > 0
             
-            val newData = currentState.temperatureData + Pair(currentState.currentInterval, temperature)
+            val newIntervalData = IntervalData(
+                intervalNumber = currentState.currentInterval,
+                temperature = temperature,
+                airFlowPower = currentState.airFlowPower,
+                rpmDrum = currentState.rpmDrum,
+                burnerPower = currentState.burnerPower
+            )
+            val newData = currentState.intervalDataList + newIntervalData
             
             if (shouldStopTimer) {
                 timerJob?.cancel()
@@ -304,7 +329,7 @@ class RoastingViewModel : ViewModel() {
             }
             
             currentState.copy(
-                temperatureData = newData,
+                intervalDataList = newData,
                 showTemperatureDialog = false,
                 isTimerRunning = !shouldStopTimer
             )
@@ -313,12 +338,21 @@ class RoastingViewModel : ViewModel() {
 
     fun updateTemperatureAtInterval(interval: Int, temperature: Float) {
         _uiState.update { currentState ->
-            val updated = currentState.temperatureData
-                .filterNot { it.first == interval }
-                .plus(Pair(interval, temperature))
-                .sortedBy { it.first }
+            val existingData = currentState.intervalDataList.find { it.intervalNumber == interval }
+            val updated = currentState.intervalDataList
+                .filterNot { it.intervalNumber == interval }
+                .plus(
+                    IntervalData(
+                        intervalNumber = interval,
+                        temperature = temperature,
+                        airFlowPower = existingData?.airFlowPower ?: currentState.airFlowPower,
+                        rpmDrum = existingData?.rpmDrum ?: currentState.rpmDrum,
+                        burnerPower = existingData?.burnerPower ?: currentState.burnerPower
+                    )
+                )
+                .sortedBy { it.intervalNumber }
 
-            currentState.copy(temperatureData = updated)
+            currentState.copy(intervalDataList = updated)
         }
     }
 

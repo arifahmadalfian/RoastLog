@@ -33,6 +33,9 @@ data class ChartDataPoint(
     val totalSeconds: Int,   // 0, 30, 60, 90...
     val temperature: Float?,  // null if not yet input
     val ror: Float?, // kenaikan suhu per interval (Rate of Rise)
+    val airFlowPower: String = "",
+    val rpmDrum: String = "",
+    val burnerPower: String = ""
 )
 
 @Composable
@@ -44,7 +47,7 @@ fun RoastingChart(
     val scrollState = rememberScrollState()
 
     Column(
-        modifier = modifier.height(400.dp)
+        modifier = modifier.height(600.dp)
     ) {
         // Chart area - takes most space
         Box(
@@ -85,6 +88,7 @@ fun RoastingChart(
             Column(
                 modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
             ) {
+                // ROR Row
                 Text(
                     text = "ROR (kenaikan suhu bean per menit)",
                     fontSize = 10.sp,
@@ -114,6 +118,96 @@ fun RoastingChart(
                         ) {
                             Text(
                                 text = rorText,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
+
+                // Air Flow Power Row
+                Text(
+                    text = "Air Flow Power (besaran buangan asap)",
+                    fontSize = 10.sp,
+                    modifier = Modifier.padding(start = 4.dp, top = 8.dp)
+                )
+                Row(
+                    modifier = Modifier.width(totalWidth.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "24",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.background
+                        )
+                    )
+                    data.forEach { point ->
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = point.airFlowPower.ifEmpty { "-" },
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
+
+                // RPM Drum Row
+                Text(
+                    text = "RPM Drum (kecepatan putaran drum)",
+                    fontSize = 10.sp,
+                    modifier = Modifier.padding(start = 4.dp, top = 8.dp)
+                )
+                Row(
+                    modifier = Modifier.width(totalWidth.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "24",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.background
+                        )
+                    )
+                    data.forEach { point ->
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = point.rpmDrum.ifEmpty { "-" },
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
+
+                // Burner Power Row
+                Text(
+                    text = "Burner Power (besaran tekanan api)",
+                    fontSize = 10.sp,
+                    modifier = Modifier.padding(start = 4.dp, top = 8.dp)
+                )
+                Row(
+                    modifier = Modifier.width(totalWidth.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "24",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.background
+                        )
+                    )
+                    data.forEach { point ->
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = point.burnerPower.ifEmpty { "-" },
                                 fontSize = 10.sp
                             )
                         }
