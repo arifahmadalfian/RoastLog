@@ -268,6 +268,7 @@ fun RoastingFormScreen(
                     onValueChange = { viewModel.updateEndTimeTemp(it) },
                     label = "End Time (°C)",
                     keyboardType = KeyboardType.Decimal,
+                    enabled = false,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -281,6 +282,7 @@ fun RoastingFormScreen(
                     onValueChange = { viewModel.updateRoastTime(it) },
                     label = "Roast Time (m)",
                     keyboardType = KeyboardType.Number,
+                    enabled = false,
                     modifier = Modifier.weight(1f)
                 )
                 SmallOutlinedTextField(
@@ -288,6 +290,7 @@ fun RoastingFormScreen(
                     onValueChange = { viewModel.updateDevTime(it) },
                     label = "Dev Time (m)",
                     keyboardType = KeyboardType.Number,
+                    enabled = false,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -1140,7 +1143,7 @@ private fun SmallOutlinedTextField(
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
-    
+
     LaunchedEffect(interactionSource) {
         interactionSource.interactions.collect { interaction ->
             when (interaction) {
@@ -1149,7 +1152,7 @@ private fun SmallOutlinedTextField(
             }
         }
     }
-    
+
     Surface(
         color = MaterialTheme.colorScheme.surface,
         shadowElevation = if (isFocused) 4.dp else 1.dp,
@@ -1178,6 +1181,7 @@ private fun SmallOutlinedTextField(
                 singleLine = true,
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 interactionSource = interactionSource,
+                enabled = enabled,
                 modifier = Modifier.fillMaxWidth()
             )
         }

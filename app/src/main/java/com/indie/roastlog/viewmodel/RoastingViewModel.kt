@@ -29,9 +29,9 @@ data class RoastingFormState(
     val isRoastTypeExpanded: Boolean = false,
     // Time & Temperature
     val chargeTimeTemp: String = "220", // Charge Time (°C)
-    val endTimeTemp: String = "", // End Time (°C)
-    val roastTime: String = "", // Roast Time (menit)
-    val devTime: String = "", // Dev Time (menit)
+    val endTimeTemp: String = "auto", // End Time (°C)
+    val roastTime: String = "auto", // Roast Time (menit)
+    val devTime: String = "auto", // Dev Time (menit)
     // Event Suhu
     val turnPoint: String = "", // Turn Point (°C)
     val yellowing: String = "", // Yellowing (°C)
