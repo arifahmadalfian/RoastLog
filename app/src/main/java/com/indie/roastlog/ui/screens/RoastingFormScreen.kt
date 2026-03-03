@@ -16,6 +16,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.*
@@ -44,7 +45,7 @@ import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun RoastingFormScreen(
     viewModel: RoastingViewModel = viewModel()
@@ -120,6 +121,7 @@ fun RoastingFormScreen(
             // Timer & Chart
             targetDuration = uiState.targetDuration.toIntOrNull() ?: 0,
             intervalSeconds = uiState.intervalSeconds.toIntOrNull() ?: 60,
+            burnerIntervalSeconds = uiState.burnerIntervalSeconds.toIntOrNull() ?: 210,
             startTemperature = uiState.startTemperature.toFloatOrNull() ?: 70f,
             temperatureData = uiState.intervalDataList.map { Pair(it.intervalNumber, it.temperature) }
         )
@@ -355,7 +357,7 @@ fun RoastingFormScreen(
                         SmallOutlinedTextField(
                             value = uiState.intervalSeconds,
                             onValueChange = { viewModel.updateIntervalSeconds(it) },
-                            label = "Interval (s)",
+                            label = "Interval Suhu (s)",
                             keyboardType = KeyboardType.Number,
                             modifier = Modifier.weight(1f)
                         )
@@ -370,24 +372,106 @@ fun RoastingFormScreen(
                 }
             }
 
+            // Card Pengaturan Burner
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Pengaturan Burner",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    // Burner Value List with Add/Remove
+                    var newBurnerValue by remember { mutableStateOf("") }
+
+                    // Add new burner value
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SmallOutlinedTextField(
+                            value = newBurnerValue,
+                            onValueChange = { newBurnerValue = it.filter { it.isDigit() }  },
+                            label ="Burner Baru",
+                            keyboardType = KeyboardType.Number,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Button(
+                            onClick = {
+                                val value = newBurnerValue.toIntOrNull()
+                                if (value != null && value > 0) {
+                                    viewModel.addBurnerValue(value)
+                                    newBurnerValue = ""
+                                }
+                            },
+                            enabled = newBurnerValue.toIntOrNull() != null && newBurnerValue.toIntOrNull()!! > 0
+                        ) {
+                            Text("Simpan")
+                        }
+                    }
+                    // List of burner values
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        uiState.burnerValues.forEach { value ->
+                            InputChip(
+                                selected = false,
+                                onClick = { },
+                                label = { Text(value.toString()) },
+                                trailingIcon = {
+                                    IconButton(
+                                        onClick = { viewModel.removeBurnerValue(value) },
+                                        modifier = Modifier.size(16.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Hapus",
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
+                                }
+                            )
+                        }
+                    }
+                    // Burner Interval Input
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SmallOutlinedTextField(
+                            value = uiState.burnerIntervalSeconds,
+                            onValueChange = { viewModel.updateBurnerIntervalSeconds(it) },
+                            label = "Interval Burner (s)",
+                            keyboardType = KeyboardType.Number,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = "Default: 210s (3m 30s)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
             IncrementDecrementField(
                 value = uiState.airFlowPower,
                 onValueChange = { viewModel.updateAirFlowPower(it) },
                 label = "Air Flow Power (besaran buangan asap)",
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            IncrementDecrementField(
-                value = uiState.rpmDrum,
-                onValueChange = { viewModel.updateRpmDrum(it) },
-                label = "RPM Drum (kecepatan putaran drum)",
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            IncrementDecrementField(
-                value = uiState.burnerPower,
-                onValueChange = { viewModel.updateBurnerPower(it) },
-                label = "Burner Power (besaran tekanan api)",
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -602,6 +686,164 @@ fun RoastingFormScreen(
                 onAutoConfirm = { temperature ->
                     voiceRecognizer.stopListening()
                     viewModel.addTemperature(temperature)
+                }
+            )
+        }
+
+        // ROR Dialog - shows after temperature input for 3 seconds
+        if (uiState.showRorDialog) {
+            val rorValue = uiState.lastRorValue
+
+            // Auto dismiss after 3 seconds
+            LaunchedEffect(Unit) {
+                delay(3000)
+                viewModel.dismissRorDialog()
+            }
+
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissRorDialog() },
+                title = {
+                    Text(
+                        text = "Rate of Rise (ROR)",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                },
+                text = {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (rorValue != null) {
+                            val rorColor = when {
+                                rorValue > 0 -> MaterialTheme.colorScheme.primary
+                                rorValue < 0 -> MaterialTheme.colorScheme.error
+                                else -> MaterialTheme.colorScheme.onSurface
+                            }
+                            val rorIcon = when {
+                                rorValue > 0 -> "↑"
+                                rorValue < 0 -> "↓"
+                                else -> "→"
+                            }
+
+                            Text(
+                                text = "$rorIcon ${String.format(Locale.getDefault(), "%.1f", kotlin.math.abs(rorValue))}°C",
+                                style = MaterialTheme.typography.displayMedium.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = rorColor
+                            )
+                            Text(
+                                text = if (rorValue > 0) "Suhu naik" else if (rorValue < 0) "Suhu turun" else "Suhu stabil",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Text(
+                                text = "-",
+                                style = MaterialTheme.typography.displayMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "Data ROR tidak tersedia",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        // Countdown indicator
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            text = "Menutup dalam 3 detik...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.dismissRorDialog() }) {
+                        Text("Tutup")
+                    }
+                }
+            )
+        }
+
+        // Burner Input Dialog - shows one value at a time with 5s auto-close
+        if (uiState.showBurnerDialog) {
+            val currentBurnerValue = uiState.burnerValues.getOrNull(uiState.currentBurnerIndex)
+
+            // Update burner power to current value
+            LaunchedEffect(currentBurnerValue) {
+                currentBurnerValue?.let {
+                    viewModel.updateBurnerPower(it.toString())
+                }
+            }
+
+            // Auto dismiss after 5 seconds
+            LaunchedEffect(Unit) {
+                delay(5000)
+                viewModel.dismissBurnerDialog()
+            }
+
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissBurnerDialog() },
+                title = {
+                    Text(
+                        text = "Burner Power",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                },
+                text = {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (currentBurnerValue != null) {
+                            Text(
+                                text = "Atur burner ke:",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = currentBurnerValue.toString(),
+                                style = MaterialTheme.typography.displayLarge.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "Nilai ke-${uiState.currentBurnerIndex + 1} dari ${uiState.burnerValues.size}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Text(
+                                text = "Tidak ada nilai burner",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+
+                        // Countdown indicator
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            text = "Menutup dalam 5 detik...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.dismissBurnerDialog() }) {
+                        Text("Tutup")
+                    }
                 }
             )
         }
