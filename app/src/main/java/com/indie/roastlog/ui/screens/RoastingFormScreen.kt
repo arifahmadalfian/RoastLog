@@ -321,38 +321,6 @@ fun RoastingFormScreen(
 
             HorizontalDivider()
 
-            SmallOutlinedTextField(
-                value = uiState.airFlowPower,
-                onValueChange = { viewModel.updateAirFlowPower(it) },
-                label = "Air Flow Power (besaran buangan asap)",
-                keyboardType = KeyboardType.Number,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            SmallOutlinedTextField(
-                value = uiState.rpmDrum,
-                onValueChange = { viewModel.updateRpmDrum(it) },
-                label = "RPM Drum (kecepatan putaran drum)",
-                keyboardType = KeyboardType.Number,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            SmallOutlinedTextField(
-                value = uiState.burnerPower,
-                onValueChange = { viewModel.updateBurnerPower(it) },
-                label = "Burner Power (besaran tekanan api)",
-                keyboardType = KeyboardType.Number,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-//            SmallOutlinedTextField(
-//                value = uiState.ror,
-//                onValueChange = { viewModel.updateRor(it) },
-//                label = "ROR (kenaikan suhu bean per menit)",
-//                keyboardType = KeyboardType.Decimal,
-//                modifier = Modifier.fillMaxWidth()
-//            )
-
             // Card with Duration, Interval, Start Temp inputs
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -401,6 +369,35 @@ fun RoastingFormScreen(
                     }
                 }
             }
+
+            IncrementDecrementField(
+                value = uiState.airFlowPower,
+                onValueChange = { viewModel.updateAirFlowPower(it) },
+                label = "Air Flow Power (besaran buangan asap)",
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            IncrementDecrementField(
+                value = uiState.rpmDrum,
+                onValueChange = { viewModel.updateRpmDrum(it) },
+                label = "RPM Drum (kecepatan putaran drum)",
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            IncrementDecrementField(
+                value = uiState.burnerPower,
+                onValueChange = { viewModel.updateBurnerPower(it) },
+                label = "Burner Power (besaran tekanan api)",
+                modifier = Modifier.fillMaxWidth()
+            )
+
+//            SmallOutlinedTextField(
+//                value = uiState.ror,
+//                onValueChange = { viewModel.updateRor(it) },
+//                label = "ROR (kenaikan suhu bean per menit)",
+//                keyboardType = KeyboardType.Decimal,
+//                modifier = Modifier.fillMaxWidth()
+//            )
 
             TimerSection(
                 elapsedSeconds = uiState.elapsedSeconds,
@@ -948,6 +945,120 @@ private fun SmallOutlinedTextField(
                 interactionSource = interactionSource,
                 modifier = Modifier.fillMaxWidth()
             )
+        }
+    }
+}
+
+@Composable
+private fun IncrementDecrementField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    step: Int = 1
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+
+    LaunchedEffect(interactionSource) {
+        interactionSource.interactions.collect { interaction ->
+            when (interaction) {
+                is androidx.compose.foundation.interaction.FocusInteraction.Focus -> isFocused = true
+                is androidx.compose.foundation.interaction.FocusInteraction.Unfocus -> isFocused = false
+            }
+        }
+    }
+
+    fun increment() {
+        val currentValue = value.toIntOrNull() ?: 0
+        onValueChange((currentValue + step).toString())
+    }
+
+    fun decrement() {
+        val currentValue = value.toIntOrNull() ?: 0
+        onValueChange((currentValue - step).coerceAtLeast(0).toString())
+    }
+
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // TextField area
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = if (isFocused) 4.dp else 1.dp,
+            tonalElevation = if (isFocused) 4.dp else 1.dp,
+            shape = MaterialTheme.shapes.small,
+            modifier = Modifier.weight(1f)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    textStyle = MaterialTheme.typography.bodyMedium.merge(
+                        TextStyle(color = MaterialTheme.colorScheme.onSurface)
+                    ),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    interactionSource = interactionSource,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // +/- Buttons
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                onClick = { decrement() },
+                color = MaterialTheme.colorScheme.secondary,
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier.size(42.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "-",
+                        color = MaterialTheme.colorScheme.onSecondary,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                }
+            }
+
+            // Button +
+            Surface(
+                onClick = { increment() },
+                color = MaterialTheme.colorScheme.primary,
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier.size(42.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "+",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                }
+            }
+
         }
     }
 }

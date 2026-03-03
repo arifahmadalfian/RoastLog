@@ -37,9 +37,9 @@ data class RoastingFormState(
     val yellowing: String = "", // Yellowing (°C)
     val firstCrack: String = "", // First Crack (°C)
     // Parameter Mesin
-    val airFlowPower: String = "", // Air Flow Power
-    val rpmDrum: String = "", // RPM Drum
-    val burnerPower: String = "", // Burner Power
+    val airFlowPower: String = "0", // Air Flow Power
+    val rpmDrum: String = "0", // RPM Drum
+    val burnerPower: String = "0", // Burner Power
     val ror: String = "", // ROR (Rate of Rise)
     // Timer & Chart
     val targetDuration: String = "20", // default 20 minutes
