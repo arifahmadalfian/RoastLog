@@ -174,10 +174,21 @@ class RoastingViewModel : ViewModel() {
 
         val points = (0..maxIntervals).map { intervalNum ->
             val secondsAtThisInterval = intervalNum * interval
+            
+            // Calculate ROR: temperature difference from previous interval
+            val currentTemp = dataMap[intervalNum]
+            val prevTemp = if (intervalNum > 0) dataMap[intervalNum - 1] else null
+            val rorValue = if (intervalNum > 0 && currentTemp != null && prevTemp != null) {
+                currentTemp - prevTemp
+            } else {
+                null
+            }
+            
             ChartDataPoint(
                 intervalNumber = intervalNum,
                 totalSeconds = secondsAtThisInterval,
-                temperature = dataMap[intervalNum]
+                temperature = currentTemp,
+                ror = rorValue
             )
         }.toMutableList()
 

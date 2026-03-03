@@ -3,12 +3,21 @@ package com.indie.roastlog.ui.components
 import android.graphics.Color
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.graphics.toColorInt
 import com.github.mikephil.charting.charts.LineChart
@@ -22,7 +31,8 @@ import java.util.Locale
 data class ChartDataPoint(
     val intervalNumber: Int, // 0, 1, 2, 3...
     val totalSeconds: Int,   // 0, 30, 60, 90...
-    val temperature: Float?  // null if not yet input
+    val temperature: Float?,  // null if not yet input
+    val ror: Float?, // kenaikan suhu per interval (Rate of Rise)
 )
 
 @Composable
@@ -33,29 +43,84 @@ fun RoastingChart(
 ) {
     val scrollState = rememberScrollState()
 
-    Box(
-        modifier = modifier.horizontalScroll(scrollState)
+    Column(
+        modifier = modifier.height(400.dp)
     ) {
-        // Calculate width: min 300dp, or 30dp per data point (smaller spacing for X axis)
-        val chartWidth = maxOf(300, data.size * 30)
-
-        AndroidView(
-            factory = { context ->
-                LineChart(context).apply {
-                    setupChart()
-                    setData(data, intervalSeconds)
-                    invalidate()
-                }
-            },
-            update = { chart ->
-                chart.setupChart()
-                chart.setData(data, intervalSeconds)
-                chart.invalidate()
-            },
+        // Chart area - takes most space
+        Box(
             modifier = Modifier
-                .width(chartWidth.dp)
-                .fillMaxHeight()
-        )
+                .horizontalScroll(scrollState)
+                .fillMaxWidth()
+                .weight(1f)  // Chart takes remaining space
+        ) {
+            // Calculate width: min 300dp, or 30dp per data point
+            val chartWidth = maxOf(300, data.size * 30)
+
+            AndroidView(
+                factory = { context ->
+                    LineChart(context).apply {
+                        setupChart()
+                        setData(data, intervalSeconds)
+                        invalidate()
+                    }
+                },
+                update = { chart ->
+                    chart.setupChart()
+                    chart.setData(data, intervalSeconds)
+                    chart.invalidate()
+                },
+                modifier = Modifier
+                    .width(chartWidth.dp)
+                    .fillMaxHeight()
+            )
+        }
+
+        // ROR labels row - sync scroll with chart
+        Box(
+            modifier = Modifier
+                .horizontalScroll(scrollState)
+                .fillMaxWidth()
+        ) {
+            val totalWidth = maxOf(300, data.size * 30)
+            Column(
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+            ) {
+                Text(
+                    text = "ROR (kenaikan suhu bean per menit)",
+                    fontSize = 10.sp,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+                Row(
+                    modifier = Modifier.width(totalWidth.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "24",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.background
+                        )
+                    )
+                    data.forEachIndexed { index, point ->
+                        val rorText = when {
+                            index == 0 -> "0"
+                            point.ror == null -> "-"
+                            else -> String.format(Locale.getDefault(), "%.1f", point.ror)
+                        }
+
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = rorText,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -96,12 +161,12 @@ private fun LineChart.setData(data: List<ChartDataPoint>, intervalSeconds: Int) 
         return
     }
 
-    // Set X axis maximum and formatter
+    // Set X axis maximum and formatter (original - only minutes)
     val maxX = (data.size - 1).toFloat()
     xAxis.axisMaximum = maxX
     xAxis.valueFormatter = TimeAxisFormatter(intervalSeconds)
     
-    // Force show all labels (set label count to data size and don't force)
+    // Force show all labels
     xAxis.setLabelCount(data.size, false)
     xAxis.granularity = 1f
 

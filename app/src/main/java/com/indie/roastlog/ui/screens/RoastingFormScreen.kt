@@ -345,13 +345,13 @@ fun RoastingFormScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            SmallOutlinedTextField(
-                value = uiState.ror,
-                onValueChange = { viewModel.updateRor(it) },
-                label = "ROR (kenaikan suhu bean per menit)",
-                keyboardType = KeyboardType.Decimal,
-                modifier = Modifier.fillMaxWidth()
-            )
+//            SmallOutlinedTextField(
+//                value = uiState.ror,
+//                onValueChange = { viewModel.updateRor(it) },
+//                label = "ROR (kenaikan suhu bean per menit)",
+//                keyboardType = KeyboardType.Decimal,
+//                modifier = Modifier.fillMaxWidth()
+//            )
 
             // Card with Duration, Interval, Start Temp inputs
             Card(
@@ -414,7 +414,10 @@ fun RoastingFormScreen(
             val chartData = viewModel.getChartData()
             val intervalSeconds = uiState.intervalSeconds.toIntOrNull() ?: 60
             if (chartData.isNotEmpty()) {
-                ChartSection(data = chartData, intervalSeconds = intervalSeconds)
+                ChartSection(
+                    data = chartData,
+                    intervalSeconds = intervalSeconds,
+                )
             }
 
             val scope = rememberCoroutineScope()
@@ -698,18 +701,11 @@ private fun ChartSection(
             modifier = Modifier
                 .fillMaxWidth()
         ) {
-//            Text(
-//                text = "Temperature Profile",
-//                style = MaterialTheme.typography.titleMedium,
-//                modifier = Modifier.padding(bottom = 8.dp)
-//            )
-
             RoastingChart(
                 data = data,
                 intervalSeconds = intervalSeconds,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(300.dp)
             )
         }
     }
