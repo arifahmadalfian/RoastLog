@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -323,8 +324,7 @@ fun RoastingFormScreen(
             SmallOutlinedTextField(
                 value = uiState.airFlowPower,
                 onValueChange = { viewModel.updateAirFlowPower(it) },
-                label = "Air Flow Power",
-                supporting = "(besaran buangan asap)",
+                label = "Air Flow Power (besaran buangan asap)",
                 keyboardType = KeyboardType.Number,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -332,8 +332,7 @@ fun RoastingFormScreen(
             SmallOutlinedTextField(
                 value = uiState.rpmDrum,
                 onValueChange = { viewModel.updateRpmDrum(it) },
-                label = "RPM Drum",
-                supporting = "(kecepatan putaran drum)",
+                label = "RPM Drum (kecepatan putaran drum)",
                 keyboardType = KeyboardType.Number,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -341,8 +340,7 @@ fun RoastingFormScreen(
             SmallOutlinedTextField(
                 value = uiState.burnerPower,
                 onValueChange = { viewModel.updateBurnerPower(it) },
-                label = "Burner Power",
-                supporting = "(besaran tekanan api)",
+                label = "Burner Power (besaran tekanan api)",
                 keyboardType = KeyboardType.Number,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -350,18 +348,10 @@ fun RoastingFormScreen(
             SmallOutlinedTextField(
                 value = uiState.ror,
                 onValueChange = { viewModel.updateRor(it) },
-                label = "ROR",
-                supporting = "(kenaikan suhu bean per menit)",
+                label = "ROR (kenaikan suhu bean per menit)",
                 keyboardType = KeyboardType.Decimal,
                 modifier = Modifier.fillMaxWidth()
             )
-
-            val chartData = viewModel.getChartData()
-            val intervalSeconds = uiState.intervalSeconds.toIntOrNull() ?: 60
-            if (chartData.isNotEmpty()) {
-                ChartSection(data = chartData, intervalSeconds = intervalSeconds)
-                Spacer(modifier = Modifier.height(16.dp))
-            }
 
             // Card with Duration, Interval, Start Temp inputs
             Card(
@@ -412,21 +402,20 @@ fun RoastingFormScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
             TimerSection(
                 elapsedSeconds = uiState.elapsedSeconds,
                 isRunning = uiState.isTimerRunning,
                 canStart = uiState.canStartTimer(),
-                targetDuration = uiState.targetDuration.toIntOrNull() ?: 0,
-                intervalSeconds = uiState.intervalSeconds.toIntOrNull() ?: 60,
-                startTemperature = uiState.startTemperature.toFloatOrNull(),
                 onStartClick = { viewModel.startTimer() },
                 onStopClick = { viewModel.stopTimer() },
                 onResetClick = { viewModel.resetTimer() }
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            val chartData = viewModel.getChartData()
+            val intervalSeconds = uiState.intervalSeconds.toIntOrNull() ?: 60
+            if (chartData.isNotEmpty()) {
+                ChartSection(data = chartData, intervalSeconds = intervalSeconds)
+            }
 
             val scope = rememberCoroutineScope()
 
@@ -434,7 +423,7 @@ fun RoastingFormScreen(
                 Button(
                     onClick = { showRevisionDialog = true },
                     modifier = Modifier.weight(1f),
-                    enabled = uiState.temperatureData.isNotEmpty() && !uiState.isTimerRunning
+                    enabled = uiState.temperatureData.isNotEmpty()
                 ) {
                     Text("Revisi Suhu")
                 }
@@ -624,9 +613,6 @@ private fun TimerSection(
     elapsedSeconds: Int,
     isRunning: Boolean,
     canStart: Boolean,
-    targetDuration: Int,
-    intervalSeconds: Int,
-    startTemperature: Float?,
     onStartClick: () -> Unit,
     onStopClick: () -> Unit,
     onResetClick: () -> Unit
@@ -634,7 +620,6 @@ private fun TimerSection(
     val minutes = elapsedSeconds / 60
     val seconds = elapsedSeconds % 60
     val formattedTime = String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
-    val formattedDuration = String.format(Locale.getDefault(), "%02d:00", targetDuration)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -645,73 +630,48 @@ private fun TimerSection(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            Text(
-                text = "Roasting Timer",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-
-            Text(
-                text = formattedTime,
-                style = MaterialTheme.typography.displayLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-
-            if (targetDuration > 0) {
-                Text(
-                    text = "Target: $formattedDuration",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
-
-            if (intervalSeconds > 0) {
-                Text(
-                    text = "Input suhu setiap $intervalSeconds detik",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
-
-            if (startTemperature != null) {
-                Text(
-                    text = "Suhu awal: ${startTemperature.toInt()}°C",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
-
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (isRunning) {
-                    Button(
-                        onClick = onStopClick,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error
-                        )
-                    ) {
-                        Text("Stop")
-                    }
-                } else {
-                    Button(
-                        onClick = onStartClick,
-                        enabled = canStart
-                    ) {
-                        Text("Start")
-                    }
-                }
+                Text(
+                    text = formattedTime,
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                    ),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
 
-                OutlinedButton(onClick = onResetClick) {
-                    Text("Reset")
+                Spacer(Modifier.weight(1f))
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isRunning) {
+                        Button(
+                            onClick = onStopClick,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text("Stop")
+                        }
+                    } else {
+                        Button(
+                            onClick = onStartClick,
+                            enabled = canStart
+                        ) {
+                            Text("Start")
+                        }
+                    }
+
+                    OutlinedButton(onClick = onResetClick) {
+                        Text("Reset")
+                    }
                 }
             }
-
             if (!canStart && !isRunning) {
                 Text(
                     text = "Masukkan durasi, interval, dan suhu awal (70-240°C)",
@@ -737,13 +697,12 @@ private fun ChartSection(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
         ) {
-            Text(
-                text = "Temperature Profile",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+//            Text(
+//                text = "Temperature Profile",
+//                style = MaterialTheme.typography.titleMedium,
+//                modifier = Modifier.padding(bottom = 8.dp)
+//            )
 
             RoastingChart(
                 data = data,
@@ -949,8 +908,7 @@ private fun SmallOutlinedTextField(
     onValueChange: (String) -> Unit,
     label: String,
     modifier: Modifier = Modifier,
-    keyboardType: KeyboardType = KeyboardType.Text,
-    supporting: String? = null
+    keyboardType: KeyboardType = KeyboardType.Text
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
@@ -995,15 +953,6 @@ private fun SmallOutlinedTextField(
                 modifier = Modifier.fillMaxWidth()
             )
         }
-    }
-    
-    supporting?.let {
-        Text(
-            text = it,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 4.dp, top = 2.dp)
-        )
     }
 }
 
