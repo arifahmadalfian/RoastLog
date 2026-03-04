@@ -39,15 +39,18 @@ data class RoastSessionData(
     val endTimeTemp: String,
     val roastTime: String,
     val devTime: String,
-    // Event Suhu
+    // Event Suhu (Formatted as "Temp°C / Time")
     val turnPoint: String,
     val yellowing: String,
     val firstCrack: String,
+    val endRoasting: String,
     // Parameter Mesin
     val airFlowPower: String,
     val rpmDrum: String,
     val burnerPower: String,
     val ror: String,
+    // Burner Events
+    val burnerEvents: List<String>,
     // Timer & Chart
     val targetDuration: Int,
     val intervalSeconds: Int,
@@ -100,23 +103,6 @@ class PdfExportManager(private val context: Context) {
             return currentPage!!.canvas
         }
 
-        // Helper to draw horizontal divider
-        fun drawDivider(canvas: Canvas, y: Float): Float {
-            canvas.drawLine(50f, y, 545f, y, dividerPaint)
-            return y + 10f
-        }
-
-        // Helper to draw a row with 2 fields
-        fun drawRow2(canvas: Canvas, y: Float, label1: String, value1: String, label2: String, value2: String): Float {
-            val x1 = 50f
-            val x2 = 300f
-            canvas.drawText(label1, x1, y, labelPaint)
-            canvas.drawText(value1, x1, y + 10f, valuePaint)
-            canvas.drawText(label2, x2, y, labelPaint)
-            canvas.drawText(value2, x2, y + 10f, valuePaint)
-            return y + 25f
-        }
-
         // Helper to draw a row with 4 fields
         fun drawRow4(canvas: Canvas, y: Float, items: List<Pair<String, String>>): Float {
             val colWidth = 120f
@@ -129,15 +115,14 @@ class PdfExportManager(private val context: Context) {
             return y + 25f
         }
 
-        // Helper to draw a row with 3 fields
-        fun drawRow3(canvas: Canvas, y: Float, items: List<Pair<String, String>>): Float {
-            val colWidth = 160f
-            var x = 50f
-            items.forEach { (label, value) ->
-                canvas.drawText(label, x, y, labelPaint)
-                canvas.drawText(value, x, y + 10f, valuePaint)
-                x += colWidth
-            }
+        // Helper to draw a row with 2 fields
+        fun drawRow2(canvas: Canvas, y: Float, label1: String, value1: String, label2: String, value2: String): Float {
+            val x1 = 50f
+            val x2 = 300f
+            canvas.drawText(label1, x1, y, labelPaint)
+            canvas.drawText(value1, x1, y + 10f, valuePaint)
+            canvas.drawText(label2, x2, y, labelPaint)
+            canvas.drawText(value2, x2, y + 10f, valuePaint)
             return y + 25f
         }
 
@@ -159,12 +144,10 @@ class PdfExportManager(private val context: Context) {
         firstCanvas.drawText("Informasi Bean", 50f, yPosition, sectionPaint)
         yPosition += 15f
 
-        // Jenis Bean
         firstCanvas.drawText("Jenis Bean", 50f, yPosition, labelPaint)
         firstCanvas.drawText(data.beanType.ifEmpty { "-" }, 50f, yPosition + 10f, valuePaint)
         yPosition += 22f
 
-        // Row: Kadar Air | Density | Berat Masuk | Berat Keluar
         yPosition = drawRow4(firstCanvas, yPosition, listOf(
             "Kadar Air (°)" to data.waterContent.ifEmpty { "-" },
             "Density (kg/L)" to data.density.ifEmpty { "-" },
@@ -172,7 +155,6 @@ class PdfExportManager(private val context: Context) {
             "Berat Keluar (gr)" to data.weightOut.ifEmpty { "-" }
         ))
 
-        // Row: Weight Loss | Roasted Type
         val weightLoss = if (data.weightIn.isNotEmpty() && data.weightOut.isNotEmpty()) {
             val inWeight = data.weightIn.toFloatOrNull() ?: 0f
             val outWeight = data.weightOut.toFloatOrNull() ?: 0f
@@ -189,25 +171,24 @@ class PdfExportManager(private val context: Context) {
         firstCanvas.drawText("Time & Temperature", 50f, yPosition, sectionPaint)
         yPosition += 15f
 
-        // Row: Charge Time | End Time | Roast Time | Dev Time
         yPosition = drawRow4(firstCanvas, yPosition, listOf(
-            "Charge Time (°C)" to data.chargeTimeTemp.ifEmpty { "-" },
-            "End Time (°C)" to data.endTimeTemp.ifEmpty { "-" },
-            "Roast Time (menit)" to data.roastTime.ifEmpty { "-" },
-            "Dev Time (menit)" to data.devTime.ifEmpty { "-" }
+            "Charge Temp (°C)" to data.chargeTimeTemp.ifEmpty { "-" },
+            "End Temp (°C)" to data.endTimeTemp.ifEmpty { "-" },
+            "Roast Time" to data.roastTime.ifEmpty { "-" },
+            "Dev Time" to data.devTime.ifEmpty { "-" }
         ))
 
         yPosition += 5f
 
-        // === Event Suhu ===
-        firstCanvas.drawText("Event Suhu", 50f, yPosition, sectionPaint)
+        // === Event Roasting ===
+        firstCanvas.drawText("Event Roasting", 50f, yPosition, sectionPaint)
         yPosition += 15f
 
-        // Row: Turn Point | Yellowing | First Crack
-        yPosition = drawRow3(firstCanvas, yPosition, listOf(
-            "Turn Point (°C)" to data.turnPoint.ifEmpty { "-" },
-            "Yellowing (°C)" to data.yellowing.ifEmpty { "-" },
-            "First Crack (°C)" to data.firstCrack.ifEmpty { "-" }
+        yPosition = drawRow4(firstCanvas, yPosition, listOf(
+            "Turn Point" to data.turnPoint.ifEmpty { "-" },
+            "Yellowing" to data.yellowing.ifEmpty { "-" },
+            "First Crack" to data.firstCrack.ifEmpty { "-" },
+            "End Roasting" to data.endRoasting.ifEmpty { "-" }
         ))
 
         yPosition += 5f
@@ -216,7 +197,6 @@ class PdfExportManager(private val context: Context) {
         firstCanvas.drawText("Parameter Mesin", 50f, yPosition, sectionPaint)
         yPosition += 15f
 
-        // Row: Air Flow | RPM Drum | Burner Power | ROR
         yPosition = drawRow4(firstCanvas, yPosition, listOf(
             "Air Flow Power" to data.airFlowPower.ifEmpty { "-" },
             "RPM Drum" to data.rpmDrum.ifEmpty { "-" },
@@ -224,17 +204,35 @@ class PdfExportManager(private val context: Context) {
             "ROR" to data.ror.ifEmpty { "-" }
         ))
 
-        yPosition += 5f
+        if (data.burnerEvents.isNotEmpty()) {
+            yPosition += 5f
+            firstCanvas.drawText("Burner Events Log:", 50f, yPosition, labelPaint)
+            yPosition += 10f
+            
+            // Draw burner events in a flow row style or list
+            var currentX = 50f
+            data.burnerEvents.forEach { event ->
+                if (currentX > 500f) {
+                    currentX = 50f
+                    yPosition += 12f
+                }
+                firstCanvas.drawText("• $event", currentX, yPosition, valuePaint)
+                currentX += 100f
+            }
+            yPosition += 15f
+        } else {
+            yPosition += 10f
+        }
 
         // === Pengaturan Timer ===
         firstCanvas.drawText("Pengaturan Timer", 50f, yPosition, sectionPaint)
         yPosition += 15f
 
-        // Row: Durasi | Interval | Suhu Awal
-        yPosition = drawRow3(firstCanvas, yPosition, listOf(
-            "Durasi (menit)" to "${data.targetDuration}",
-            "Interval (detik)" to "${data.intervalSeconds}",
-            "Suhu Awal (°C)" to "${data.startTemperature.toInt()}"
+        yPosition = drawRow4(firstCanvas, yPosition, listOf(
+            "Durasi (m)" to "${data.targetDuration}",
+            "Interval (s)" to "${data.intervalSeconds}",
+            "Suhu Awal (°C)" to "${data.startTemperature.toInt()}",
+            "" to ""
         ))
 
         yPosition += 15f
@@ -298,7 +296,7 @@ class PdfExportManager(private val context: Context) {
 
     private fun createChartBitmap(data: RoastSessionData): Bitmap {
         val chartWidth = 480
-        val chartHeight = 240 // Lebih tinggi untuk jarak antar label suhu lebih renggang
+        val chartHeight = 240 
 
         val totalSeconds = data.targetDuration * 60
         val maxIntervals = if (data.intervalSeconds > 0) totalSeconds / data.intervalSeconds else 0
@@ -320,14 +318,11 @@ class PdfExportManager(private val context: Context) {
                 axisMaximum = 240f
                 textColor = Color.BLACK
                 textSize = 8f
-                // Force show all labels from 240 to 70
                 labelCount = 9
                 setLabelCount(9, true)
                 setDrawLabels(true)
-                // Custom formatter to show 240, 230, 220...70
                 valueFormatter = object : ValueFormatter() {
                     override fun getFormattedValue(value: Float): String {
-                        // Round to nearest 10
                         val rounded = (value / 10).toInt() * 10
                         return if (rounded in 70..240) rounded.toString() else ""
                     }
@@ -341,11 +336,9 @@ class PdfExportManager(private val context: Context) {
                 setDrawGridLines(true)
                 granularity = 1f
                 textColor = Color.BLACK
-                textSize = 7f // Ukuran lebih besar
+                textSize = 7f 
                 axisMinimum = 0f
                 axisMaximum = maxX
-                // Batasi jumlah label agar tidak berdempetan
-                // Tampilkan sekitar 8-10 label saja
                 val step = maxOf(1, maxIntervals / 8)
                 setLabelCount((maxIntervals / step) + 1, true)
                 labelRotationAngle = -45f
@@ -358,25 +351,23 @@ class PdfExportManager(private val context: Context) {
         }
 
         val dataSet = LineDataSet(entries, "Temperature").apply {
-            color = "#6D4C41".toColorInt() // Coffee brown color
-            lineWidth = 2f // Garis lebih tebal
-            setDrawCircles(true) // Tampilkan titik
+            color = "#6D4C41".toColorInt()
+            lineWidth = 2f
+            setDrawCircles(true)
             setCircleColor("#6D4C41".toColorInt())
-            circleRadius = 3f // Titik lebih besar
+            circleRadius = 3f
             setDrawValues(false)
             mode = LineDataSet.Mode.LINEAR
         }
 
         chart.data = LineData(dataSet)
 
-        // Measure and layout
         chart.measure(
             View.MeasureSpec.makeMeasureSpec(chartWidth, View.MeasureSpec.EXACTLY),
             View.MeasureSpec.makeMeasureSpec(chartHeight, View.MeasureSpec.EXACTLY)
         )
         chart.layout(0, 0, chartWidth, chartHeight)
 
-        // Draw to bitmap
         val bitmap = createBitmap(chartWidth, chartHeight)
         val canvas = Canvas(bitmap)
         chart.draw(canvas)

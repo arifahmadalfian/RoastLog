@@ -109,14 +109,17 @@ fun RoastingFormScreen(
             roastTime = uiState.roastTime,
             devTime = uiState.devTime,
             // Event Suhu
-            turnPoint = uiState.turnPoint,
-            yellowing = uiState.yellowing,
-            firstCrack = uiState.firstCrack,
+            turnPoint = uiState.turnPoints?.let { "${it.temperature}°C / ${it.time}" } ?: "-",
+            yellowing = uiState.yellowingEvent?.let { "${it.temperature}°C / ${it.time}" } ?: "-",
+            firstCrack = uiState.firstCrackEvent?.let { "${it.temperature}°C / ${it.time}" } ?: "-",
+            endRoasting = uiState.endRoastEvent?.let { "${it.temperature}°C / ${it.time}" } ?: "-",
             // Parameter Mesin
             airFlowPower = uiState.airFlowPower,
             rpmDrum = uiState.rpmDrum,
             burnerPower = uiState.burnerPower,
             ror = uiState.ror,
+            // Burner Events
+            burnerEvents = uiState.burnerValues.map { "${it.temperature.toInt()} / ${it.time}" },
             // Timer & Chart
             targetDuration = uiState.targetDuration.toIntOrNull() ?: 0,
             intervalSeconds = uiState.intervalSeconds.toIntOrNull() ?: 60,
