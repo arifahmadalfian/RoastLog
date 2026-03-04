@@ -31,7 +31,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun RoastingRunScreen(
     viewModel: RoastingRunViewModel = viewModel(),
-    formState: RoastingFormState
+    formState: RoastingFormState,
+    onFinish: () -> Unit
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
@@ -65,10 +66,10 @@ fun RoastingRunScreen(
             endTimeTemp = uiState.endTimeTemp,
             roastTime = uiState.roastTime,
             devTime = uiState.devTime,
-            turnPoint = currentSetup.setupTurnPoint?.let { "${it.temperature}°C / ${it.time}" } ?: "-",
-            yellowing = currentSetup.setupYellowing?.let { "${it.temperature}°C / ${it.time}" } ?: "-",
-            firstCrack = currentSetup.setupFirstCrack?.let { "${it.temperature}°C / ${it.time}" } ?: "-",
-            endRoasting = currentSetup.setupEndRoast?.let { "${it.temperature}°C / ${it.time}" } ?: "-",
+            turnPoint = uiState.actualTurnPoint?.let { "${it.temperature}°C / ${it.time}" } ?: "-",
+            yellowing = uiState.actualYellowing?.let { "${it.temperature}°C / ${it.time}" } ?: "-",
+            firstCrack = uiState.actualFirstCrack?.let { "${it.temperature}°C / ${it.time}" } ?: "-",
+            endRoasting = uiState.actualEndRoast?.let { "${it.temperature}°C / ${it.time}" } ?: "-",
             airFlowPower = currentSetup.airFlowPower,
             rpmDrum = currentSetup.rpmDrum,
             burnerPower = currentSetup.burnerPower,
@@ -83,7 +84,7 @@ fun RoastingRunScreen(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Roasting Process: ${uiState.setupData.beanType}") }) },
+        topBar = { TopAppBar(title = { Text("Roasting: ${uiState.setupData.beanType}") }) },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(
@@ -101,6 +102,41 @@ fun RoastingRunScreen(
                 onStopClick = { viewModel.stopTimer() },
                 onResetClick = { viewModel.resetTimer() }
             )
+
+            // Manual Mark Event Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { 
+                        val lastTemp = uiState.intervalDataList.lastOrNull()?.temperature ?: 0f
+                        viewModel.markYellowing(lastTemp)
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEB3B), contentColor = Color.Black)
+                ) { Text("Yellowing") }
+                
+                Button(
+                    onClick = { 
+                        val lastTemp = uiState.intervalDataList.lastOrNull()?.temperature ?: 0f
+                        viewModel.markFirstCrack(lastTemp)
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800))
+                ) { Text("1st Crack") }
+                
+                Button(
+                    onClick = { 
+                        val lastTemp = uiState.intervalDataList.lastOrNull()?.temperature ?: 0f
+                        viewModel.markEndRoast(lastTemp)
+                        viewModel.saveToDatabase(context)
+                        onFinish() 
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
+                ) { Text("Finish") }
+            }
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SmallOutlinedTextField(
@@ -374,7 +410,10 @@ fun TemperatureInputDialog(
             Button(onClick = { input.toFloatOrNull()?.let { onConfirm(it) } }) { Text("OK") }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Batal") }
+            TextButton(onClick = {
+                input = ""
+                onDismiss()
+            }) { Text("Batal") }
         }
     )
 }

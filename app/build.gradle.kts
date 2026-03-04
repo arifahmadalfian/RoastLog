@@ -1,7 +1,9 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    kotlin("plugin.serialization") version "2.1.0"
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -45,8 +47,14 @@ dependencies {
     implementation(libs.mpandroidchart)
     implementation(libs.androidx.activity.compose)
     implementation(libs.material.icons.extended)
-    implementation("androidx.navigation:navigation-compose:2.8.7")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.kotlinx.serialization.json)
+    
+    // Room
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
+
     implementation("com.itextpdf:itext7-core:8.0.2")
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)

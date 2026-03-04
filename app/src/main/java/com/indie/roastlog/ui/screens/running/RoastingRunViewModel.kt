@@ -1,9 +1,13 @@
 package com.indie.roastlog.ui.screens.running
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.indie.roastlog.data.RoastDatabase
+import com.indie.roastlog.data.RoastSessionEntity
 import com.indie.roastlog.ui.components.ChartDataPoint
 import com.indie.roastlog.ui.model.IntervalData
+import com.indie.roastlog.ui.model.RoastingEvent
 import com.indie.roastlog.ui.screens.form.RoastingFormState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -12,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.Date
 import java.util.Locale
 
 data class RoastingRunState(
@@ -23,6 +28,12 @@ data class RoastingRunState(
     val endTimeTemp: String = "auto",
     val roastTime: String = "auto",
     val devTime: String = "auto",
+    
+    // Recorded during run (Actual events)
+    val actualTurnPoint: RoastingEvent? = null,
+    val actualYellowing: RoastingEvent? = null,
+    val actualFirstCrack: RoastingEvent? = null,
+    val actualEndRoast: RoastingEvent? = null,
     
     // Running State
     val elapsedSeconds: Int = 0,
@@ -51,27 +62,50 @@ class RoastingRunViewModel : ViewModel() {
     fun init(formState: RoastingFormState) {
         _uiState.update { it.copy(
             setupData = formState,
-            endTimeTemp = formState.setupEndRoast?.temperature?.toString() ?: "auto",
-            roastTime = formState.setupEndRoast?.time ?: "auto"
+            // Pre-fill actuals from setup as a baseline, or keep them for reference
+            actualTurnPoint = formState.setupTurnPoint,
+            actualYellowing = formState.setupYellowing,
+            actualFirstCrack = formState.setupFirstCrack,
+            actualEndRoast = formState.setupEndRoast
         ) }
-        calculateDevTime()
+        updateResults()
     }
 
-    private fun calculateDevTime() {
+    private fun updateResults() {
         _uiState.update { state ->
-            val fc = state.setupData.setupFirstCrack
-            val er = state.setupData.setupEndRoast
+            val er = state.actualEndRoast
+            val fc = state.actualFirstCrack
+            
             var devTimeStr = "auto"
             if (fc != null && er != null) {
                 val diff = er.seconds - fc.seconds
                 if (diff >= 0) {
-                    val m = diff / 60
-                    val s = diff % 60
-                    devTimeStr = "%d.%02d".format(m, s)
+                    devTimeStr = "%d.%02d".format(diff / 60, diff % 60)
                 }
             }
-            state.copy(devTime = devTimeStr)
+            
+            state.copy(
+                endTimeTemp = er?.temperature?.toString() ?: "auto",
+                roastTime = er?.time ?: "auto",
+                devTime = devTimeStr
+            )
         }
+    }
+
+    fun markYellowing(temp: Float) {
+        _uiState.update { it.copy(actualYellowing = RoastingEvent(temp, it.elapsedSeconds)) }
+        updateResults()
+    }
+
+    fun markFirstCrack(temp: Float) {
+        _uiState.update { it.copy(actualFirstCrack = RoastingEvent(temp, it.elapsedSeconds)) }
+        updateResults()
+    }
+
+    fun markEndRoast(temp: Float) {
+        _uiState.update { it.copy(actualEndRoast = RoastingEvent(temp, it.elapsedSeconds)) }
+        updateResults()
+        stopTimer()
     }
 
     fun updateWeightOut(value: String) {
@@ -244,7 +278,8 @@ class RoastingRunViewModel : ViewModel() {
             )
         }.toMutableList()
 
-        listOfNotNull(state.setupTurnPoint, state.setupYellowing, state.setupFirstCrack, state.setupEndRoast).forEach { ev ->
+        val runningState = _uiState.value
+        listOfNotNull(runningState.actualTurnPoint, runningState.actualYellowing, runningState.actualFirstCrack, runningState.actualEndRoast).forEach { ev ->
             points.add(ChartDataPoint(
                 intervalNumber = ev.seconds.toFloat() / interval,
                 totalSeconds = ev.seconds,
@@ -254,5 +289,33 @@ class RoastingRunViewModel : ViewModel() {
         }
 
         return points.sortedBy { it.totalSeconds }
+    }
+
+    fun saveToDatabase(context: Context) {
+        val state = _uiState.value
+        val setup = state.setupData
+        
+        val entity = RoastSessionEntity(
+            date = Date().time,
+            beanType = setup.beanType,
+            waterContent = setup.waterContent,
+            density = setup.density,
+            weightIn = setup.weightIn,
+            weightOut = state.weightOut,
+            roastType = setup.roastType,
+            endTimeTemp = state.endTimeTemp,
+            roastTime = state.roastTime,
+            devTime = state.devTime,
+            turnPoint = state.actualTurnPoint,
+            yellowing = state.actualYellowing,
+            firstCrack = state.actualFirstCrack,
+            endRoast = state.actualEndRoast,
+            burnerPlan = setup.burnerPlan,
+            temperatureData = state.intervalDataList
+        )
+
+        viewModelScope.launch {
+            RoastDatabase.getDatabase(context).roastDao().insertSession(entity)
+        }
     }
 }
