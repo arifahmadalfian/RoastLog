@@ -53,7 +53,7 @@ data class RoastSessionData(
     val intervalSeconds: Int,
     val burnerIntervalSeconds: Int,
     val startTemperature: Float,
-    val temperatureData: List<Pair<Int, Float>>, // intervalNumber, temperature
+    val temperatureData: List<Pair<Float, Float>>, // intervalNumber (Float), temperature
     val roastDate: Date = Date()
 )
 
@@ -355,7 +355,7 @@ class PdfExportManager(private val context: Context) {
         }
 
         val entries = data.temperatureData.map { (intervalNum, temp) ->
-            Entry(intervalNum.toFloat(), temp)
+            Entry(intervalNum, temp)
         }
 
         val dataSet = LineDataSet(entries, "Temperature").apply {

@@ -19,6 +19,11 @@ data class IntervalData(
     val burnerPower: String = ""
 )
 
+data class TurnPointEvent(
+    val temperature: Float,
+    val seconds: Int
+)
+
 data class RoastingFormState(
     val beanType: String = "",
     val waterContent: String = "",
@@ -34,6 +39,7 @@ data class RoastingFormState(
     val devTime: String = "auto", // Dev Time (menit)
     // Event Suhu
     val turnPoint: String = "", // Turn Point (°C)
+    val turnPoints: TurnPointEvent? = null,
     val yellowing: String = "", // Yellowing (°C)
     val firstCrack: String = "", // First Crack (°C)
     // Parameter Mesin
@@ -126,6 +132,18 @@ class RoastingViewModel : ViewModel() {
     // Event Suhu
     fun updateTurnPoint(value: String) {
         _uiState.update { it.copy(turnPoint = filterDecimal(value)) }
+    }
+
+    fun addTurnPoint(temperature: Float, seconds: Int) {
+        _uiState.update { currentState ->
+            currentState.copy(turnPoints = TurnPointEvent(temperature, seconds), turnPoint = temperature.toString())
+        }
+    }
+
+    fun removeTurnPoint() {
+        _uiState.update { currentState ->
+            currentState.copy(turnPoints = null)
+        }
     }
 
     fun updateYellowing(value: String) {
@@ -222,7 +240,7 @@ class RoastingViewModel : ViewModel() {
             }
             
             ChartDataPoint(
-                intervalNumber = intervalNum,
+                intervalNumber = intervalNum.toFloat(),
                 totalSeconds = secondsAtThisInterval,
                 temperature = currentTemp,
                 ror = rorValue,
@@ -232,12 +250,37 @@ class RoastingViewModel : ViewModel() {
             )
         }.toMutableList()
 
-        val startTemp = state.chargeTimeTemp.toFloatOrNull()
-        if (startTemp != null && points.isNotEmpty() && points[0].temperature == null) {
-            points[0] = points[0].copy(temperature = startTemp)
+        // Add Turn Points to the chart data
+        state.turnPoints?.let { tp ->
+            val floatInterval = tp.seconds.toFloat() / interval
+            // Only add if not already at an interval (though adding it anyway is fine for the line chart)
+            // But we don't have ROR/AirFlow for turn points easily, so we just add temperature
+            points.add(ChartDataPoint(
+                intervalNumber = floatInterval,
+                totalSeconds = tp.seconds,
+                temperature = tp.temperature,
+                ror = null,
+                airFlowPower = "",
+                rpmDrum = "",
+                burnerPower = ""
+            ))
         }
 
-        return points
+        // Sort by total seconds to ensure proper line drawing
+        val sortedPoints = points.sortedBy { it.totalSeconds }
+
+        val startTemp = state.chargeTimeTemp.toFloatOrNull()
+        
+        // Re-calculate the first point's start temp if needed
+        val finalPoints = sortedPoints.mapIndexed { index, point ->
+            if (index == 0 && point.totalSeconds == 0 && point.temperature == null) {
+                point.copy(temperature = startTemp)
+            } else {
+                point
+            }
+        }
+
+        return finalPoints
     }
 
     fun startTimer() {

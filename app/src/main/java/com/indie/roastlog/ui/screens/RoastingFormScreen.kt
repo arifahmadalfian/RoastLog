@@ -122,7 +122,9 @@ fun RoastingFormScreen(
             intervalSeconds = uiState.intervalSeconds.toIntOrNull() ?: 60,
             burnerIntervalSeconds = uiState.burnerIntervalSeconds.toIntOrNull() ?: 210,
             startTemperature = uiState.chargeTimeTemp.toFloatOrNull() ?: 70f,
-            temperatureData = uiState.intervalDataList.map { Pair(it.intervalNumber, it.temperature) }
+            temperatureData = viewModel.getChartData().mapNotNull { point ->
+                point.temperature?.let { Pair(point.intervalNumber, it) }
+            }
         )
 
         val result = pdfManager.exportRoastSessionToPdf(roastData)
@@ -301,13 +303,6 @@ fun RoastingFormScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 SmallOutlinedTextField(
-                    value = uiState.turnPoint,
-                    onValueChange = { viewModel.updateTurnPoint(it) },
-                    label = "Turn Point (°C)",
-                    keyboardType = KeyboardType.Decimal,
-                    modifier = Modifier.weight(1f)
-                )
-                SmallOutlinedTextField(
                     value = uiState.yellowing,
                     onValueChange = { viewModel.updateYellowing(it) },
                     label = "Yellowing (°C)",
@@ -321,6 +316,103 @@ fun RoastingFormScreen(
                     keyboardType = KeyboardType.Decimal,
                     modifier = Modifier.weight(1f)
                 )
+            }
+
+            HorizontalDivider()
+
+            // Card Turn Point
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Pengaturan Turn Point",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    var newTurnPointTemp by remember { mutableStateOf("") }
+                    var newTurnPointSeconds by remember { mutableStateOf("") }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SmallOutlinedTextField(
+                            value = newTurnPointTemp,
+                            onValueChange = { newTurnPointTemp = it.filter { it.isDigit() || it == '.' } },
+                            label = "Suhu (°C)",
+                            keyboardType = KeyboardType.Decimal,
+                            modifier = Modifier.weight(1f)
+                        )
+                        SmallOutlinedTextField(
+                            value = newTurnPointSeconds,
+                            onValueChange = { newTurnPointSeconds = it.filter { it.isDigit() } },
+                            label = "Detik (s)",
+                            keyboardType = KeyboardType.Number,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+
+
+                        // List of turn points
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            uiState.turnPoints?.let { event ->
+                                InputChip(
+                                    selected = false,
+                                    onClick = { },
+                                    label = { Text("${event.temperature}°C / ${event.seconds}s") },
+                                    trailingIcon = {
+                                        IconButton(
+                                            onClick = { viewModel.removeTurnPoint() },
+                                            modifier = Modifier.size(16.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Hapus",
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                        Button(
+                            onClick = {
+                                val temp = newTurnPointTemp.toFloatOrNull()
+                                val seconds = newTurnPointSeconds.toIntOrNull()
+                                if (temp != null && seconds != null) {
+                                    viewModel.addTurnPoint(temp, seconds)
+                                    newTurnPointTemp = ""
+                                    newTurnPointSeconds = ""
+                                }
+                            },
+                            enabled = newTurnPointTemp.toFloatOrNull() != null && newTurnPointSeconds.toIntOrNull() != null
+                        ) {
+                            Text("Save")
+                        }
+                    }
+                }
             }
 
             HorizontalDivider()
@@ -412,7 +504,7 @@ fun RoastingFormScreen(
                             },
                             enabled = newBurnerValue.toIntOrNull() != null && newBurnerValue.toIntOrNull()!! > 0
                         ) {
-                            Text("Simpan")
+                            Text("Save")
                         }
                     }
                     // List of burner values

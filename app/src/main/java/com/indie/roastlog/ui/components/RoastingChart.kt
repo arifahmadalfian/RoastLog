@@ -29,7 +29,7 @@ import com.github.mikephil.charting.formatter.ValueFormatter
 import java.util.Locale
 
 data class ChartDataPoint(
-    val intervalNumber: Int, // 0, 1, 2, 3...
+    val intervalNumber: Float, // 0f, 1f, 1.5f, 2f...
     val totalSeconds: Int,   // 0, 30, 60, 90...
     val temperature: Float?,  // null if not yet input
     val ror: Float?, // kenaikan suhu per interval (Rate of Rise)
@@ -105,7 +105,7 @@ fun RoastingChart(
                             color = MaterialTheme.colorScheme.background
                         )
                     )
-                    data.forEachIndexed { index, point ->
+                    data.filter { it.intervalNumber == it.intervalNumber.toInt().toFloat() }.forEachIndexed { index, point ->
                         val rorText = when {
                             index == 0 -> "0"
                             point.ror == null -> "-"
@@ -141,7 +141,7 @@ fun RoastingChart(
                             color = MaterialTheme.colorScheme.background
                         )
                     )
-                    data.forEach { point ->
+                    data.filter { it.intervalNumber == it.intervalNumber.toInt().toFloat() }.forEach { point ->
                         Box(
                             modifier = Modifier.weight(1f),
                             contentAlignment = Alignment.Center
@@ -171,7 +171,7 @@ fun RoastingChart(
                             color = MaterialTheme.colorScheme.background
                         )
                     )
-                    data.forEach { point ->
+                    data.filter { it.intervalNumber == it.intervalNumber.toInt().toFloat() }.forEach { point ->
                         Box(
                             modifier = Modifier.weight(1f),
                             contentAlignment = Alignment.Center
@@ -201,7 +201,7 @@ fun RoastingChart(
                             color = MaterialTheme.colorScheme.background
                         )
                     )
-                    data.forEach { point ->
+                    data.filter { it.intervalNumber == it.intervalNumber.toInt().toFloat() }.forEach { point ->
                         Box(
                             modifier = Modifier.weight(1f),
                             contentAlignment = Alignment.Center
