@@ -18,6 +18,7 @@ import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import com.github.mikephil.charting.formatter.ValueFormatter
+import com.indie.roastlog.ui.components.ChartDataPoint
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -55,7 +56,7 @@ data class RoastSessionData(
     val targetDuration: Int,
     val intervalSeconds: Int,
     val startTemperature: Float,
-    val temperatureData: List<Pair<Float, Float>>, // intervalNumber (Float), temperature
+    val temperatureData: List<ChartDataPoint>,
     val roastDate: Date = Date()
 )
 
@@ -90,9 +91,15 @@ class PdfExportManager(private val context: Context) {
             typeface = Typeface.DEFAULT_BOLD
         }
 
-        val dividerPaint = Paint().apply {
-            color = Color.LTGRAY
-            strokeWidth = 1f
+        val tableHeaderPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 7f
+            typeface = Typeface.DEFAULT_BOLD
+        }
+
+        val tableContentPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 7f
         }
 
         // Helper function to start a new page
@@ -193,47 +200,42 @@ class PdfExportManager(private val context: Context) {
 
         yPosition += 5f
 
-        // === Parameter Mesin ===
-        firstCanvas.drawText("Parameter Mesin", 50f, yPosition, sectionPaint)
+        // === Machine Log Table ===
+        firstCanvas.drawText("Machine Parameters Log", 50f, yPosition, sectionPaint)
         yPosition += 15f
 
-        yPosition = drawRow4(firstCanvas, yPosition, listOf(
-            "Air Flow Power" to data.airFlowPower.ifEmpty { "-" },
-            "RPM Drum" to data.rpmDrum.ifEmpty { "-" },
-            "Burner Power" to data.burnerPower.ifEmpty { "-" },
-            "ROR" to data.ror.ifEmpty { "-" }
-        ))
+        // Draw Table Header
+        val headers = listOf("Time", "Temp", "ROR", "Air", "RPM", "Burner")
+        val colWidths = listOf(60f, 60f, 60f, 60f, 60f, 60f)
+        var currentX = 50f
+        headers.forEachIndexed { i, header ->
+            firstCanvas.drawText(header, currentX, yPosition, tableHeaderPaint)
+            currentX += colWidths[i]
+        }
+        yPosition += 12f
 
-        if (data.burnerEvents.isNotEmpty()) {
-            yPosition += 5f
-            firstCanvas.drawText("Burner Events Log:", 50f, yPosition, labelPaint)
-            yPosition += 10f
-            
-            // Draw burner events in a flow row style or list
-            var currentX = 50f
-            data.burnerEvents.forEach { event ->
-                if (currentX > 500f) {
-                    currentX = 50f
-                    yPosition += 12f
-                }
-                firstCanvas.drawText("• $event", currentX, yPosition, valuePaint)
-                currentX += 100f
+        // Draw Table Content (Filter only whole interval points like in the app)
+        val logData = data.temperatureData.filter { it.intervalNumber == it.intervalNumber.toInt().toFloat() }
+        logData.forEach { point ->
+            // Check if we need a new page
+            if (yPosition > 800f) {
+                canvas = startNewPage()
+                yPosition = 50f
+                // Redraw header on new page if needed, but for simplicity let's just continue
             }
-            yPosition += 15f
-        } else {
+            
+            val timeStr = formatTime(point.intervalNumber.toInt(), data.intervalSeconds)
+            val tempStr = point.temperature?.toString() ?: "-"
+            val rorStr = point.ror?.let { String.format(Locale.getDefault(), "%.1f", it) } ?: "-"
+            
+            currentX = 50f
+            val rowValues = listOf(timeStr, tempStr, rorStr, point.airFlowPower, point.rpmDrum, point.burnerPower)
+            rowValues.forEachIndexed { i, value ->
+                canvas!!.drawText(value.ifEmpty { "-" }, currentX, yPosition, tableContentPaint)
+                currentX += colWidths[i]
+            }
             yPosition += 10f
         }
-
-        // === Pengaturan Timer ===
-        firstCanvas.drawText("Pengaturan Timer", 50f, yPosition, sectionPaint)
-        yPosition += 15f
-
-        yPosition = drawRow4(firstCanvas, yPosition, listOf(
-            "Durasi (m)" to "${data.targetDuration}",
-            "Interval (s)" to "${data.intervalSeconds}",
-            "Suhu Awal (°C)" to "${data.startTemperature.toInt()}",
-            "" to ""
-        ))
 
         yPosition += 15f
 
@@ -248,7 +250,7 @@ class PdfExportManager(private val context: Context) {
         yPosition += 15f
 
         val chartBitmap = createChartBitmap(data)
-        val chartHeight = 240
+        val chartHeight = 240 
         chartCanvas.drawBitmap(chartBitmap, 50f, yPosition, null)
         yPosition += chartHeight + 10f
 
@@ -294,6 +296,14 @@ class PdfExportManager(private val context: Context) {
         }
     }
 
+    private fun formatTime(intervalNum: Int, intervalSeconds: Int): String {
+        val totalSeconds = intervalNum * intervalSeconds
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        return if (intervalSeconds >= 60) "$minutes"
+        else String.format(Locale.getDefault(), "%d.%02d", minutes, seconds)
+    }
+
     private fun createChartBitmap(data: RoastSessionData): Bitmap {
         val chartWidth = 480
         val chartHeight = 240 
@@ -318,15 +328,9 @@ class PdfExportManager(private val context: Context) {
                 axisMaximum = 240f
                 textColor = Color.BLACK
                 textSize = 8f
-                labelCount = 9
-                setLabelCount(9, true)
+                labelCount = 18
+                setLabelCount(18, true)
                 setDrawLabels(true)
-                valueFormatter = object : ValueFormatter() {
-                    override fun getFormattedValue(value: Float): String {
-                        val rounded = (value / 10).toInt() * 10
-                        return if (rounded in 70..240) rounded.toString() else ""
-                    }
-                }
             }
 
             axisRight.isEnabled = false
@@ -342,19 +346,23 @@ class PdfExportManager(private val context: Context) {
                 val step = maxOf(1, maxIntervals / 8)
                 setLabelCount((maxIntervals / step) + 1, true)
                 labelRotationAngle = -45f
-                valueFormatter = PdfTimeAxisFormatter(data.intervalSeconds)
+                valueFormatter = object : ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        return formatTime(value.toInt(), data.intervalSeconds)
+                    }
+                }
             }
         }
 
-        val entries = data.temperatureData.map { (intervalNum, temp) ->
-            Entry(intervalNum, temp)
+        val entries = data.temperatureData.mapNotNull { point ->
+            point.temperature?.let { Entry(point.intervalNumber, it) }
         }
 
         val dataSet = LineDataSet(entries, "Temperature").apply {
-            color = "#6D4C41".toColorInt()
+            color = "#2196F3".toColorInt()
             lineWidth = 2f
             setDrawCircles(true)
-            setCircleColor("#6D4C41".toColorInt())
+            setCircleColor("#2196F3".toColorInt())
             circleRadius = 3f
             setDrawValues(false)
             mode = LineDataSet.Mode.LINEAR
@@ -373,19 +381,5 @@ class PdfExportManager(private val context: Context) {
         chart.draw(canvas)
 
         return bitmap
-    }
-
-    private class PdfTimeAxisFormatter(private val intervalSeconds: Int) : ValueFormatter() {
-        override fun getFormattedValue(value: Float): String {
-            val intervalNum = value.toInt()
-            val totalSeconds = intervalNum * intervalSeconds
-            val minutes = totalSeconds / 60
-            val seconds = totalSeconds % 60
-
-            return when {
-                intervalSeconds >= 60 -> "$minutes"
-                else -> String.format(Locale.getDefault(), "%d.%02d", minutes, seconds)
-            }
-        }
     }
 }

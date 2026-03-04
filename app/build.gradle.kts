@@ -1,18 +1,17 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    kotlin("plugin.serialization") version "2.1.0"
 }
 
 android {
     namespace = "com.indie.roastlog"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.indie.roastlog"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -46,6 +45,8 @@ dependencies {
     implementation(libs.mpandroidchart)
     implementation(libs.androidx.activity.compose)
     implementation(libs.material.icons.extended)
+    implementation("androidx.navigation:navigation-compose:2.8.7")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("com.itextpdf:itext7-core:8.0.2")
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
