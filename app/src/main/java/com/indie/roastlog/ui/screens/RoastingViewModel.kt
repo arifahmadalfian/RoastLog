@@ -19,10 +19,17 @@ data class IntervalData(
     val burnerPower: String = ""
 )
 
-data class TurnPointEvent(
+data class RoastingEvent(
     val temperature: Float,
     val seconds: Int
-)
+) {
+    val time: String
+        get() {
+            val m = seconds / 60
+            val s = seconds % 60
+            return "%02d.%02d".format(m, s)
+        }
+}
 
 data class RoastingFormState(
     val beanType: String = "",
@@ -39,9 +46,12 @@ data class RoastingFormState(
     val devTime: String = "auto", // Dev Time (menit)
     // Event Suhu
     val turnPoint: String = "", // Turn Point (°C)
-    val turnPoints: TurnPointEvent? = null,
+    val turnPoints: RoastingEvent? = null,
     val yellowing: String = "", // Yellowing (°C)
+    val yellowingEvent: RoastingEvent? = null,
     val firstCrack: String = "", // First Crack (°C)
+    val firstCrackEvent: RoastingEvent? = null,
+    val endRoastEvent: RoastingEvent? = null,
     // Parameter Mesin
     val airFlowPower: String = "0", // Air Flow Power
     val rpmDrum: String = "0", // RPM Drum
@@ -136,7 +146,7 @@ class RoastingViewModel : ViewModel() {
 
     fun addTurnPoint(temperature: Float, seconds: Int) {
         _uiState.update { currentState ->
-            currentState.copy(turnPoints = TurnPointEvent(temperature, seconds), turnPoint = temperature.toString())
+            currentState.copy(turnPoints = RoastingEvent(temperature, seconds), turnPoint = temperature.toString())
         }
     }
 
@@ -150,8 +160,51 @@ class RoastingViewModel : ViewModel() {
         _uiState.update { it.copy(yellowing = filterDecimal(value)) }
     }
 
+    fun addYellowing(temperature: Float, seconds: Int) {
+        _uiState.update { currentState ->
+            currentState.copy(yellowingEvent = RoastingEvent(temperature, seconds), yellowing = temperature.toString())
+        }
+    }
+
+    fun removeYellowing() {
+        _uiState.update { currentState ->
+            currentState.copy(yellowingEvent = null)
+        }
+    }
+
     fun updateFirstCrack(value: String) {
         _uiState.update { it.copy(firstCrack = filterDecimal(value)) }
+    }
+
+    fun addFirstCrack(temperature: Float, seconds: Int) {
+        _uiState.update { currentState ->
+            currentState.copy(firstCrackEvent = RoastingEvent(temperature, seconds), firstCrack = temperature.toString())
+        }
+    }
+
+    fun removeFirstCrack() {
+        _uiState.update { currentState ->
+            currentState.copy(firstCrackEvent = null)
+        }
+    }
+
+    fun addEndRoast(temperature: Float, seconds: Int) {
+        _uiState.update { currentState ->
+            val m = seconds / 60
+            val s = seconds % 60
+            val timeStr = "%d.%02d".format(m, s)
+            currentState.copy(
+                endRoastEvent = RoastingEvent(temperature, seconds),
+                endTimeTemp = temperature.toString(),
+                roastTime = timeStr
+            )
+        }
+    }
+
+    fun removeEndRoast() {
+        _uiState.update { currentState ->
+            currentState.copy(endRoastEvent = null, endTimeTemp = "auto", roastTime = "auto")
+        }
     }
 
     // Parameter Mesin
@@ -250,15 +303,14 @@ class RoastingViewModel : ViewModel() {
             )
         }.toMutableList()
 
-        // Add Turn Points to the chart data
-        state.turnPoints?.let { tp ->
-            val floatInterval = tp.seconds.toFloat() / interval
-            // Only add if not already at an interval (though adding it anyway is fine for the line chart)
-            // But we don't have ROR/AirFlow for turn points easily, so we just add temperature
+        // Add Events to the chart data
+        val events = listOfNotNull(state.turnPoints, state.yellowingEvent, state.firstCrackEvent, state.endRoastEvent)
+        events.forEach { ev ->
+            val floatInterval = ev.seconds.toFloat() / interval
             points.add(ChartDataPoint(
                 intervalNumber = floatInterval,
-                totalSeconds = tp.seconds,
-                temperature = tp.temperature,
+                totalSeconds = ev.seconds,
+                temperature = ev.temperature,
                 ror = null,
                 airFlowPower = "",
                 rpmDrum = "",

@@ -260,14 +260,14 @@ fun RoastingFormScreen(
                 SmallOutlinedTextField(
                     value = uiState.chargeTimeTemp,
                     onValueChange = { viewModel.updateChargeTimeTemp(it) },
-                    label = "Charge Time (°C)",
+                    label = "Charge Temp (°C)",
                     keyboardType = KeyboardType.Decimal,
                     modifier = Modifier.weight(1f)
                 )
                 SmallOutlinedTextField(
                     value = uiState.endTimeTemp,
                     onValueChange = { viewModel.updateEndTimeTemp(it) },
-                    label = "End Time (°C)",
+                    label = "End Temp (°C)",
                     keyboardType = KeyboardType.Decimal,
                     enabled = false,
                     modifier = Modifier.weight(1f)
@@ -298,29 +298,7 @@ fun RoastingFormScreen(
 
             HorizontalDivider()
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                SmallOutlinedTextField(
-                    value = uiState.yellowing,
-                    onValueChange = { viewModel.updateYellowing(it) },
-                    label = "Yellowing (°C)",
-                    keyboardType = KeyboardType.Decimal,
-                    modifier = Modifier.weight(1f)
-                )
-                SmallOutlinedTextField(
-                    value = uiState.firstCrack,
-                    onValueChange = { viewModel.updateFirstCrack(it) },
-                    label = "First Crack (°C)",
-                    keyboardType = KeyboardType.Decimal,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            HorizontalDivider()
-
-            // Card Turn Point
+            // Card Events (Turn Point, Yellowing, First Crack, End Roast)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -332,132 +310,55 @@ fun RoastingFormScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "Pengaturan Turn Point",
+                        text = "Pengaturan Event Roasting",
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    var newTurnPointTemp by remember { mutableStateOf("") }
-                    var newTurnPointSeconds by remember { mutableStateOf("") }
+                    // Turn Point Section
+                    EventInputSection(
+                        title = "Turn Point",
+                        currentEvent = uiState.turnPoints,
+                        onAdd = { t, s -> viewModel.addTurnPoint(t, s) },
+                        onRemove = { viewModel.removeTurnPoint() }
+                    )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SmallOutlinedTextField(
-                            value = newTurnPointTemp,
-                            onValueChange = { newTurnPointTemp = it.filter { it.isDigit() || it == '.' } },
-                            label = "Suhu (°C)",
-                            keyboardType = KeyboardType.Decimal,
-                            modifier = Modifier.weight(1f)
-                        )
-                        SmallOutlinedTextField(
-                            value = newTurnPointSeconds,
-                            onValueChange = { newTurnPointSeconds = it.filter { it.isDigit() } },
-                            label = "Detik (s)",
-                            keyboardType = KeyboardType.Number,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                    HorizontalDivider(modifier = Modifier.alpha(0.5f))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    // Yellowing Section
+                    EventInputSection(
+                        title = "Yellowing",
+                        currentEvent = uiState.yellowingEvent,
+                        onAdd = { t, s -> viewModel.addYellowing(t, s) },
+                        onRemove = { viewModel.removeYellowing() }
+                    )
 
+                    HorizontalDivider(modifier = Modifier.alpha(0.5f))
 
-                        // List of turn points
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            uiState.turnPoints?.let { event ->
-                                InputChip(
-                                    selected = false,
-                                    onClick = { },
-                                    label = { Text("${event.temperature}°C / ${event.seconds}s") },
-                                    trailingIcon = {
-                                        IconButton(
-                                            onClick = { viewModel.removeTurnPoint() },
-                                            modifier = Modifier.size(16.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Hapus",
-                                                modifier = Modifier.size(12.dp)
-                                            )
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                        Button(
-                            onClick = {
-                                val temp = newTurnPointTemp.toFloatOrNull()
-                                val seconds = newTurnPointSeconds.toIntOrNull()
-                                if (temp != null && seconds != null) {
-                                    viewModel.addTurnPoint(temp, seconds)
-                                    newTurnPointTemp = ""
-                                    newTurnPointSeconds = ""
-                                }
-                            },
-                            enabled = newTurnPointTemp.toFloatOrNull() != null && newTurnPointSeconds.toIntOrNull() != null
-                        ) {
-                            Text("Save")
-                        }
-                    }
+                    // First Crack Section
+                    EventInputSection(
+                        title = "First Crack",
+                        currentEvent = uiState.firstCrackEvent,
+                        onAdd = { t, s -> viewModel.addFirstCrack(t, s) },
+                        onRemove = { viewModel.removeFirstCrack() }
+                    )
+
+                    HorizontalDivider(modifier = Modifier.alpha(0.5f))
+
+                    // End Roasting Section
+                    EventInputSection(
+                        title = "End Roasting",
+                        currentEvent = uiState.endRoastEvent,
+                        onAdd = { t, s -> viewModel.addEndRoast(t, s) },
+                        onRemove = { viewModel.removeEndRoast() }
+                    )
                 }
             }
 
             HorizontalDivider()
-
-            // Card with Duration, Interval inputs
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Pengaturan Timer",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SmallOutlinedTextField(
-                            value = uiState.targetDuration,
-                            onValueChange = { viewModel.updateTargetDuration(it) },
-                            label = "Durasi (m)",
-                            keyboardType = KeyboardType.Number,
-                            modifier = Modifier.weight(1f)
-                        )
-                        SmallOutlinedTextField(
-                            value = uiState.intervalSeconds,
-                            onValueChange = { viewModel.updateIntervalSeconds(it) },
-                            label = "Interval Suhu (s)",
-                            keyboardType = KeyboardType.Number,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
 
             // Card Pengaturan Burner
             Card(
@@ -568,6 +469,48 @@ fun RoastingFormScreen(
                 label = "RPM Drum (kecepatan putaran drum)",
                 modifier = Modifier.fillMaxWidth()
             )
+
+            // Card with Duration, Interval inputs
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Pengaturan Timer",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SmallOutlinedTextField(
+                            value = uiState.targetDuration,
+                            onValueChange = { viewModel.updateTargetDuration(it) },
+                            label = "Durasi (m)",
+                            keyboardType = KeyboardType.Number,
+                            modifier = Modifier.weight(1f)
+                        )
+                        SmallOutlinedTextField(
+                            value = uiState.intervalSeconds,
+                            onValueChange = { viewModel.updateIntervalSeconds(it) },
+                            label = "Interval Suhu (s)",
+                            keyboardType = KeyboardType.Number,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
 
             TimerSection(
                 elapsedSeconds = uiState.elapsedSeconds,
@@ -937,6 +880,105 @@ fun RoastingFormScreen(
 }
 
 @Composable
+private fun EventInputSection(
+    title: String,
+    currentEvent: RoastingEvent?,
+    onAdd: (Float, Int) -> Unit,
+    onRemove: () -> Unit
+) {
+    var tempInput by remember { mutableStateOf("") }
+    var minInput by remember { mutableStateOf("0") }
+    var secInput by remember { mutableStateOf("0") }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SmallOutlinedTextField(
+                value = tempInput,
+                onValueChange = { tempInput = it.filter { it.isDigit() || it == '.' } },
+                label = "Suhu (°C)",
+                keyboardType = KeyboardType.Decimal,
+                modifier = Modifier.weight(1f)
+            )
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SmallOutlinedTextField(
+                    value = minInput,
+                    onValueChange = { minInput = it.filter { it.isDigit() }.take(2) },
+                    label = "Min",
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(":", fontWeight = FontWeight.Bold)
+                SmallOutlinedTextField(
+                    value = secInput,
+                    onValueChange = { secInput = it.filter { it.isDigit() }.take(2) },
+                    label = "Sec",
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                if (currentEvent != null) {
+                    InputChip(
+                        selected = false,
+                        onClick = { },
+                        label = { Text("${currentEvent.temperature}°C / ${currentEvent.time}") },
+                        trailingIcon = {
+                            IconButton(
+                                onClick = onRemove,
+                                modifier = Modifier.size(16.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Hapus",
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
+                        }
+                    )
+                }
+            }
+            
+            Button(
+                onClick = {
+                    val temp = tempInput.toFloatOrNull()
+                    val totalSec = (minInput.toIntOrNull() ?: 0) * 60 + (secInput.toIntOrNull() ?: 0)
+                    if (temp != null && totalSec > 0) {
+                        onAdd(temp, totalSec)
+                        tempInput = ""
+                        minInput = "0"
+                        secInput = "0"
+                    }
+                },
+                enabled = tempInput.isNotEmpty() && ((minInput.toIntOrNull() ?: 0) * 60 + (secInput.toIntOrNull() ?: 0)) > 0
+            ) {
+                Text("Save")
+            }
+        }
+    }
+}
+
+@Composable
 private fun TimerSection(
     elapsedSeconds: Int,
     isRunning: Boolean,
@@ -1002,7 +1044,7 @@ private fun TimerSection(
             }
             if (!canStart && !isRunning) {
                 Text(
-                    text = "Masukkan durasi, interval, dan Charge Time (70-240°C)",
+                    text = "Masukkan durasi, interval, dan Charge Temp (70-240°C)",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -1209,7 +1251,10 @@ private fun TemperatureInputDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = {
+                temperatureInput = ""
+                onDismiss()
+            }) {
                 Text("Batal")
             }
         }
