@@ -178,13 +178,27 @@ class RoastingViewModel : ViewModel() {
 
     fun addFirstCrack(temperature: Float, seconds: Int) {
         _uiState.update { currentState ->
-            currentState.copy(firstCrackEvent = RoastingEvent(temperature, seconds), firstCrack = temperature.toString())
+            val fcEvent = RoastingEvent(temperature, seconds)
+            var devTimeStr = "auto"
+            currentState.endRoastEvent?.let { endEvent ->
+                val diffSeconds = endEvent.seconds - seconds
+                if (diffSeconds >= 0) {
+                    val m = diffSeconds / 60
+                    val s = diffSeconds % 60
+                    devTimeStr = "%d.%02d".format(m, s)
+                }
+            }
+            currentState.copy(
+                firstCrackEvent = fcEvent,
+                firstCrack = temperature.toString(),
+                devTime = devTimeStr
+            )
         }
     }
 
     fun removeFirstCrack() {
         _uiState.update { currentState ->
-            currentState.copy(firstCrackEvent = null)
+            currentState.copy(firstCrackEvent = null, devTime = "auto")
         }
     }
 
@@ -192,18 +206,30 @@ class RoastingViewModel : ViewModel() {
         _uiState.update { currentState ->
             val m = seconds / 60
             val s = seconds % 60
-            val timeStr = "%d.%02d".format(m, s)
+            val roastTimeStr = "%d.%02d".format(m, s)
+            
+            var devTimeStr = "auto"
+            currentState.firstCrackEvent?.let { fcEvent ->
+                val diffSeconds = seconds - fcEvent.seconds
+                if (diffSeconds >= 0) {
+                    val dm = diffSeconds / 60
+                    val ds = diffSeconds % 60
+                    devTimeStr = "%d.%02d".format(dm, ds)
+                }
+            }
+            
             currentState.copy(
                 endRoastEvent = RoastingEvent(temperature, seconds),
                 endTimeTemp = temperature.toString(),
-                roastTime = timeStr
+                roastTime = roastTimeStr,
+                devTime = devTimeStr
             )
         }
     }
 
     fun removeEndRoast() {
         _uiState.update { currentState ->
-            currentState.copy(endRoastEvent = null, endTimeTemp = "auto", roastTime = "auto")
+            currentState.copy(endRoastEvent = null, endTimeTemp = "auto", roastTime = "auto", devTime = "auto")
         }
     }
 
