@@ -120,7 +120,6 @@ fun RoastingFormScreen(
             // Timer & Chart
             targetDuration = uiState.targetDuration.toIntOrNull() ?: 0,
             intervalSeconds = uiState.intervalSeconds.toIntOrNull() ?: 60,
-            burnerIntervalSeconds = uiState.burnerIntervalSeconds.toIntOrNull() ?: 210,
             startTemperature = uiState.chargeTimeTemp.toFloatOrNull() ?: 70f,
             temperatureData = viewModel.getChartData().mapNotNull { point ->
                 point.temperature?.let { Pair(point.intervalNumber, it) }
@@ -372,86 +371,99 @@ fun RoastingFormScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
                         text = "Pengaturan Burner",
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary
                     )
-                    // Burner Value List with Add/Remove
-                    var newBurnerValue by remember { mutableStateOf("") }
 
-                    // Add new burner value
+                    var burnerPowerInput by remember { mutableStateOf("") }
+                    var burnerMinInput by remember { mutableStateOf("0") }
+                    var burnerSecInput by remember { mutableStateOf("0") }
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         SmallOutlinedTextField(
-                            value = newBurnerValue,
-                            onValueChange = { newBurnerValue = it.filter { it.isDigit() }  },
-                            label ="Burner Baru",
+                            value = burnerPowerInput,
+                            onValueChange = { burnerPowerInput = it.filter { it.isDigit() } },
+                            label = "Power",
                             keyboardType = KeyboardType.Number,
                             modifier = Modifier.weight(1f)
                         )
-                        Button(
-                            onClick = {
-                                val value = newBurnerValue.toIntOrNull()
-                                if (value != null && value > 0) {
-                                    viewModel.addBurnerValue(value)
-                                    newBurnerValue = ""
-                                }
-                            },
-                            enabled = newBurnerValue.toIntOrNull() != null && newBurnerValue.toIntOrNull()!! > 0
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Save")
-                        }
-                    }
-                    // List of burner values
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        uiState.burnerValues.forEach { value ->
-                            InputChip(
-                                selected = false,
-                                onClick = { },
-                                label = { Text(value.toString()) },
-                                trailingIcon = {
-                                    IconButton(
-                                        onClick = { viewModel.removeBurnerValue(value) },
-                                        modifier = Modifier.size(16.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "Hapus",
-                                            modifier = Modifier.size(12.dp)
-                                        )
-                                    }
-                                }
+                            SmallOutlinedTextField(
+                                value = burnerMinInput,
+                                onValueChange = { burnerMinInput = it.filter { it.isDigit() }.take(2) },
+                                label = "Min",
+                                keyboardType = KeyboardType.Number,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(":", fontWeight = FontWeight.Bold)
+                            SmallOutlinedTextField(
+                                value = burnerSecInput,
+                                onValueChange = { burnerSecInput = it.filter { it.isDigit() }.take(2) },
+                                label = "Sec",
+                                keyboardType = KeyboardType.Number,
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
-                    // Burner Interval Input
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        SmallOutlinedTextField(
-                            value = uiState.burnerIntervalSeconds,
-                            onValueChange = { viewModel.updateBurnerIntervalSeconds(it) },
-                            label = "Interval Burner (s)",
-                            keyboardType = KeyboardType.Number,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text(
-                            text = "Default: 210s (3m 30s)",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        FlowRow(
+                            modifier = Modifier.weight(1f),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            uiState.burnerValues.forEach { event ->
+                                InputChip(
+                                    selected = false,
+                                    onClick = { },
+                                    label = { Text("${event.temperature.toInt()} / ${event.time}") },
+                                    trailingIcon = {
+                                        IconButton(
+                                            onClick = { viewModel.removeBurnerEvent(event) },
+                                            modifier = Modifier.size(16.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Hapus",
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                        
+                        Button(
+                            onClick = {
+                                val power = burnerPowerInput.toFloatOrNull()
+                                val totalSec = (burnerMinInput.toIntOrNull() ?: 0) * 60 + (burnerSecInput.toIntOrNull() ?: 0)
+                                if (power != null && totalSec > 0) {
+                                    viewModel.addBurnerEvent(power, totalSec)
+                                    burnerPowerInput = ""
+                                    burnerMinInput = "0"
+                                    burnerSecInput = "0"
+                                }
+                            },
+                            enabled = burnerPowerInput.isNotEmpty() && ((burnerMinInput.toIntOrNull() ?: 0) * 60 + (burnerSecInput.toIntOrNull() ?: 0)) > 0
+                        ) {
+                            Text("Save")
+                        }
                     }
                 }
             }
@@ -802,12 +814,12 @@ fun RoastingFormScreen(
 
         // Burner Input Dialog - shows one value at a time with 5s auto-close
         if (uiState.showBurnerDialog) {
-            val currentBurnerValue = uiState.burnerValues.getOrNull(uiState.currentBurnerIndex)
+            val currentBurnerEvent = uiState.burnerValues.getOrNull(uiState.currentBurnerIndex)
 
             // Update burner power to current value
-            LaunchedEffect(currentBurnerValue) {
-                currentBurnerValue?.let {
-                    viewModel.updateBurnerPower(it.toString())
+            LaunchedEffect(currentBurnerEvent) {
+                currentBurnerEvent?.let {
+                    viewModel.updateBurnerPower(it.temperature.toInt().toString())
                 }
             }
 
@@ -832,21 +844,21 @@ fun RoastingFormScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        if (currentBurnerValue != null) {
+                        if (currentBurnerEvent != null) {
                             Text(
                                 text = "Atur burner ke:",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = currentBurnerValue.toString(),
+                                text = currentBurnerEvent.temperature.toInt().toString(),
                                 style = MaterialTheme.typography.displayLarge.copy(
                                     fontWeight = FontWeight.Bold
                                 ),
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "Nilai ke-${uiState.currentBurnerIndex + 1} dari ${uiState.burnerValues.size}",
+                                text = "Event pada waktu ${currentBurnerEvent.time}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

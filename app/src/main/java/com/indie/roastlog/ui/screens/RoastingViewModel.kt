@@ -60,7 +60,6 @@ data class RoastingFormState(
     // Timer & Chart
     val targetDuration: String = "20", // default 20 minutes
     val intervalSeconds: String = "60", // default 60 seconds (1 minute)
-    val burnerIntervalSeconds: String = "210", // default 210 seconds (3 minutes 30 seconds)
     val startTemperature: String = "70", // default 70°C
     val elapsedSeconds: Int = 0,
     val isTimerRunning: Boolean = false,
@@ -72,9 +71,9 @@ data class RoastingFormState(
     val lastRorValue: Float? = null,
     // Burner Dialog
     val showBurnerDialog: Boolean = false,
-    val pendingBurnerInterval: Int = -1, // pending burner interval to show after temp dialog
-    val burnerValues: List<Int> = listOf(30, 70, 100), // default burner values
-    val currentBurnerIndex: Int = 0 // which burner value to show next
+    val pendingBurnerIndex: Int = -1, // index of burner event to show
+    val burnerValues: List<RoastingEvent> = emptyList(), // List of power values at specific seconds
+    val currentBurnerIndex: Int = 0 // which burner event is currently being shown in dialog
 ) {
     fun canStartTimer(): Boolean {
         val duration = targetDuration.toIntOrNull()
@@ -92,7 +91,6 @@ class RoastingViewModel : ViewModel() {
 
     private var timerJob: Job? = null
     private var lastInterval: Int = 0
-    private var lastBurnerInterval: Int = -1
 
     fun updateBeanType(value: String) {
         _uiState.update { it.copy(beanType = value) }
@@ -246,16 +244,16 @@ class RoastingViewModel : ViewModel() {
         _uiState.update { it.copy(burnerPower = filterDigits(value)) }
     }
 
-    fun addBurnerValue(value: Int) {
+    fun addBurnerEvent(power: Float, seconds: Int) {
         _uiState.update { currentState ->
-            val newList = (currentState.burnerValues + value).sorted()
-            currentState.copy(burnerValues = newList, burnerPower = value.toString())
+            val newList = (currentState.burnerValues + RoastingEvent(power, seconds)).sortedBy { it.seconds }
+            currentState.copy(burnerValues = newList)
         }
     }
 
-    fun removeBurnerValue(value: Int) {
+    fun removeBurnerEvent(event: RoastingEvent) {
         _uiState.update { currentState ->
-            val newList = currentState.burnerValues.filter { it != value }
+            val newList = currentState.burnerValues.filter { it != event }
             currentState.copy(burnerValues = newList)
         }
     }
@@ -271,10 +269,6 @@ class RoastingViewModel : ViewModel() {
 
     fun updateIntervalSeconds(value: String) {
         _uiState.update { it.copy(intervalSeconds = filterDigits(value)) }
-    }
-
-    fun updateBurnerIntervalSeconds(value: String) {
-        _uiState.update { it.copy(burnerIntervalSeconds = filterDigits(value)) }
     }
 
     fun updateStartTemperature(value: String) {
@@ -367,7 +361,6 @@ class RoastingViewModel : ViewModel() {
         val state = _uiState.value
         val duration = state.targetDuration.toIntOrNull()
         val interval = state.intervalSeconds.toIntOrNull()
-        val burnerInterval = state.burnerIntervalSeconds.toIntOrNull()
         val startTemp = state.chargeTimeTemp.toFloatOrNull()
         if (duration == null || duration <= 0 ||
             interval == null || interval <= 0 ||
@@ -375,7 +368,6 @@ class RoastingViewModel : ViewModel() {
 
         _uiState.update { it.copy(isTimerRunning = true) }
         lastInterval = 0
-        lastBurnerInterval = -1
 
         val totalSeconds = duration * 60
 
@@ -404,18 +396,16 @@ class RoastingViewModel : ViewModel() {
                         onIntervalPassed(currentIntervalCount)
                     }
 
-                    // Check for burner interval (only if not showing temp dialog)
-                    val effectiveBurnerInterval = burnerInterval ?: 210
-                    val currentBurnerCount = newSeconds / effectiveBurnerInterval
-                    var pendingBurner = currentState.pendingBurnerInterval
-                    if (currentBurnerCount > lastBurnerInterval && newSeconds >= effectiveBurnerInterval) {
-                        lastBurnerInterval = currentBurnerCount
+                    // Check for burner events
+                    val burnerEventIndex = currentState.burnerValues.indexOfFirst { it.seconds == newSeconds }
+                    var pendingBIndex = currentState.pendingBurnerIndex
+                    if (burnerEventIndex != -1) {
                         if (!currentState.showTemperatureDialog && !currentState.showRorDialog) {
-                            // Show burner dialog immediately if no other dialog is showing
-                            onBurnerIntervalPassed(currentBurnerCount)
+                            // Show burner dialog immediately
+                            onBurnerEventReached(burnerEventIndex)
                         } else {
-                            // Mark as pending - will show when other dialogs are dismissed
-                            pendingBurner = currentBurnerCount
+                            // Mark as pending
+                            pendingBIndex = burnerEventIndex
                         }
                     }
 
@@ -428,11 +418,11 @@ class RoastingViewModel : ViewModel() {
                         return@update currentState.copy(
                             elapsedSeconds = totalSeconds,
                             isTimerRunning = false,
-                            pendingBurnerInterval = pendingBurner
+                            pendingBurnerIndex = pendingBIndex
                         )
                     }
 
-                    currentState.copy(elapsedSeconds = newSeconds, pendingBurnerInterval = pendingBurner)
+                    currentState.copy(elapsedSeconds = newSeconds, pendingBurnerIndex = pendingBIndex)
                 }
             }
         }
@@ -447,8 +437,7 @@ class RoastingViewModel : ViewModel() {
     fun resetTimer() {
         stopTimer()
         lastInterval = 0
-        lastBurnerInterval = -1
-        _uiState.update { it.copy(elapsedSeconds = 0, intervalDataList = emptyList(), pendingBurnerInterval = -1, currentBurnerIndex = 0) }
+        _uiState.update { it.copy(elapsedSeconds = 0, intervalDataList = emptyList(), pendingBurnerIndex = -1, currentBurnerIndex = 0) }
     }
 
     private fun onIntervalPassed(interval: Int) {
@@ -460,27 +449,19 @@ class RoastingViewModel : ViewModel() {
         }
     }
 
-    private fun onBurnerIntervalPassed(interval: Int) {
+    private fun onBurnerEventReached(index: Int) {
         _uiState.update { currentState ->
-            // Check if we have more burner values to show
-            val hasMoreValues = currentState.currentBurnerIndex < currentState.burnerValues.size
-            if (hasMoreValues) {
-                currentState.copy(
-                    showBurnerDialog = true
-                )
-            } else {
-                // No more values, don't show dialog
-                currentState.copy(showBurnerDialog = false)
-            }
+            currentState.copy(
+                showBurnerDialog = true,
+                currentBurnerIndex = index
+            )
         }
     }
 
     fun dismissBurnerDialog() {
         _uiState.update { currentState ->
-            val newIndex = (currentState.currentBurnerIndex + 1).coerceAtMost(currentState.burnerValues.size)
             currentState.copy(
-                showBurnerDialog = false,
-                currentBurnerIndex = newIndex
+                showBurnerDialog = false
             )
         }
     }
@@ -495,15 +476,15 @@ class RoastingViewModel : ViewModel() {
                 timerJob = null
             }
             
-            // Check if there's a pending burner interval to show and we have values left
-            val hasMoreBurnerValues = currentState.currentBurnerIndex < currentState.burnerValues.size
-            val showBurner = currentState.pendingBurnerInterval >= 0 && !shouldStopTimer && hasMoreBurnerValues
+            // Check if there's a pending burner index to show
+            val showBurner = currentState.pendingBurnerIndex >= 0 && !shouldStopTimer
             
             currentState.copy(
                 showTemperatureDialog = false,
                 isTimerRunning = !shouldStopTimer,
                 showBurnerDialog = showBurner,
-                pendingBurnerInterval = if (showBurner) -1 else currentState.pendingBurnerInterval
+                currentBurnerIndex = if (showBurner) currentState.pendingBurnerIndex else currentState.currentBurnerIndex,
+                pendingBurnerIndex = if (showBurner) -1 else currentState.pendingBurnerIndex
             )
         }
     }
@@ -549,14 +530,14 @@ class RoastingViewModel : ViewModel() {
 
     fun dismissRorDialog() {
         _uiState.update { currentState ->
-            // Check if there's a pending burner interval to show and we have values left
-            val hasMoreBurnerValues = currentState.currentBurnerIndex < currentState.burnerValues.size
-            val showBurner = currentState.pendingBurnerInterval >= 0 && hasMoreBurnerValues
+            // Check if there's a pending burner index to show
+            val showBurner = currentState.pendingBurnerIndex >= 0
             currentState.copy(
                 showRorDialog = false,
                 lastRorValue = null,
                 showBurnerDialog = showBurner,
-                pendingBurnerInterval = if (showBurner) -1 else currentState.pendingBurnerInterval
+                currentBurnerIndex = if (showBurner) currentState.pendingBurnerIndex else currentState.currentBurnerIndex,
+                pendingBurnerIndex = if (showBurner) -1 else currentState.pendingBurnerIndex
             )
         }
     }

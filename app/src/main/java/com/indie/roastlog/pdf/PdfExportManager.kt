@@ -51,7 +51,6 @@ data class RoastSessionData(
     // Timer & Chart
     val targetDuration: Int,
     val intervalSeconds: Int,
-    val burnerIntervalSeconds: Int,
     val startTemperature: Float,
     val temperatureData: List<Pair<Float, Float>>, // intervalNumber (Float), temperature
     val roastDate: Date = Date()
