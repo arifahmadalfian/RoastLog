@@ -35,7 +35,6 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.indie.roastlog.speech.VoiceRecognitionState
 import com.indie.roastlog.speech.VoiceRecognizerManager
-import com.indie.roastlog.viewmodel.RoastingViewModel
 import com.indie.roastlog.ui.components.RoastingChart
 import com.indie.roastlog.ui.components.ChartDataPoint
 import com.indie.roastlog.pdf.PdfExportManager

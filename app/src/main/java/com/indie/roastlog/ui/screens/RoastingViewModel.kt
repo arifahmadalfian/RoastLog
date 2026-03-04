@@ -1,4 +1,4 @@
-package com.indie.roastlog.viewmodel
+package com.indie.roastlog.ui.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
