@@ -29,10 +29,26 @@ data class RoastingFormState(
     val setupFirstCrack: RoastingEvent? = null,
     val setupEndRoast: RoastingEvent? = null,
     
-    // Timer & Burner Plan
+    // Plans
+    val burnerPlan: List<RoastingEvent> = listOf(
+        RoastingEvent(30f, 3 * 60 + 30),
+        RoastingEvent(50f, 6 * 60 + 30),
+        RoastingEvent(70f, 9 * 60 + 30)
+    ),
+    val airFlowPlan: List<RoastingEvent> = listOf(
+        RoastingEvent(30f, 3 * 60 + 35),
+        RoastingEvent(50f, 6 * 60 + 35),
+        RoastingEvent(70f, 9 * 60 + 35)
+    ),
+    val rpmPlan: List<RoastingEvent> = listOf(
+        RoastingEvent(30f, 3 * 60 + 40),
+        RoastingEvent(50f, 6 * 60 + 40),
+        RoastingEvent(70f, 9 * 60 + 40)
+    ),
+    
+    // Timer
     val targetDuration: String = "20",
-    val intervalSeconds: String = "60",
-    val burnerPlan: List<RoastingEvent> = emptyList()
+    val intervalSeconds: String = "60"
 )
 
 class RoastingFormViewModel : ViewModel() {
@@ -46,26 +62,30 @@ class RoastingFormViewModel : ViewModel() {
     fun updateRoastType(value: String) { _uiState.update { it.copy(roastType = value, isRoastTypeExpanded = false) } }
     fun toggleRoastTypeExpanded(expanded: Boolean) { _uiState.update { it.copy(isRoastTypeExpanded = expanded) } }
     fun updateChargeTimeTemp(value: String) { _uiState.update { it.copy(chargeTimeTemp = filterDecimal(value)) } }
+    
     fun updateAirFlowPower(value: String) { _uiState.update { it.copy(airFlowPower = filterDigits(value)) } }
     fun updateRpmDrum(value: String) { _uiState.update { it.copy(rpmDrum = filterDigits(value)) } }
     fun updateBurnerPower(value: String) { _uiState.update { it.copy(burnerPower = filterDigits(value)) } }
-    fun updateTargetDuration(value: String) { _uiState.update { it.copy(targetDuration = filterDigits(value)) } }
-    fun updateIntervalSeconds(value: String) { _uiState.update { it.copy(intervalSeconds = filterDigits(value)) } }
-
-    fun addTurnPoint(temp: Float, sec: Int) { _uiState.update { it.copy(setupTurnPoint = RoastingEvent(temp, sec)) } }
-    fun removeTurnPoint() { _uiState.update { it.copy(setupTurnPoint = null) } }
-    fun addYellowing(temp: Float, sec: Int) { _uiState.update { it.copy(setupYellowing = RoastingEvent(temp, sec)) } }
-    fun removeYellowing() { _uiState.update { it.copy(setupYellowing = null) } }
-    fun addFirstCrack(temp: Float, sec: Int) { _uiState.update { it.copy(setupFirstCrack = RoastingEvent(temp, sec)) } }
-    fun removeFirstCrack() { _uiState.update { it.copy(setupFirstCrack = null) } }
-    fun addEndRoast(temp: Float, sec: Int) { _uiState.update { it.copy(setupEndRoast = RoastingEvent(temp, sec)) } }
-    fun removeEndRoast() { _uiState.update { it.copy(setupEndRoast = null) } }
 
     fun addBurnerEvent(power: Float, sec: Int) {
         _uiState.update { it.copy(burnerPlan = (it.burnerPlan + RoastingEvent(power, sec)).sortedBy { e -> e.seconds }) }
     }
     fun removeBurnerEvent(event: RoastingEvent) {
         _uiState.update { it.copy(burnerPlan = it.burnerPlan.filter { e -> e != event }) }
+    }
+
+    fun addAirFlowEvent(power: Float, sec: Int) {
+        _uiState.update { it.copy(airFlowPlan = (it.airFlowPlan + RoastingEvent(power, sec)).sortedBy { e -> e.seconds }) }
+    }
+    fun removeAirFlowEvent(event: RoastingEvent) {
+        _uiState.update { it.copy(airFlowPlan = it.airFlowPlan.filter { e -> e != event }) }
+    }
+
+    fun addRpmEvent(power: Float, sec: Int) {
+        _uiState.update { it.copy(rpmPlan = (it.rpmPlan + RoastingEvent(power, sec)).sortedBy { e -> e.seconds }) }
+    }
+    fun removeRpmEvent(event: RoastingEvent) {
+        _uiState.update { it.copy(rpmPlan = it.rpmPlan.filter { e -> e != event }) }
     }
 
     private fun filterDigits(value: String) = value.filter { it.isDigit() }
