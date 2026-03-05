@@ -4,16 +4,22 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Air
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.indie.roastlog.pdf.PdfExportManager
 import com.indie.roastlog.pdf.RoastSessionData
@@ -27,7 +33,7 @@ import java.util.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun RoastingRunScreen(
     viewModel: RoastingRunViewModel = viewModel(),
@@ -95,6 +101,39 @@ fun RoastingRunScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Setup Info Display (Read-only)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            ) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(text = "Informasi Setup Roasting", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                    
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        InfoItem(label = "Bean", value = uiState.setupData.beanType, modifier = Modifier.weight(1f))
+                        InfoItem(label = "Kadar Air", value = "${uiState.setupData.waterContent}%", modifier = Modifier.weight(1f))
+                        InfoItem(label = "Density", value = "${uiState.setupData.density} kg/L", modifier = Modifier.weight(1f))
+                    }
+                    
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        InfoItem(label = "Roast Type", value = uiState.setupData.roastType, modifier = Modifier.weight(1f))
+                        InfoItem(label = "Berat Masuk", value = "${uiState.setupData.weightIn} gr", modifier = Modifier.weight(1f))
+                        InfoItem(label = "Charge Temp", value = "${uiState.setupData.chargeTimeTemp}°C", modifier = Modifier.weight(1f))
+                    }
+
+                    HorizontalDivider(thickness = 0.5.dp, modifier = Modifier.padding(vertical = 4.dp))
+
+                    // Display Plans (Burner, Air Flow, RPM)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PlanSummarySection(title = "Burner Plan", events = uiState.setupData.burnerPlan)
+                        PlanSummarySection(title = "Air Flow Plan", events = uiState.setupData.airFlowPlan)
+                        PlanSummarySection(title = "RPM Drum Plan", events = uiState.setupData.rpmPlan)
+                    }
+
+
+                }
+            }
+
             TimerSection(
                 elapsedSeconds = uiState.elapsedSeconds,
                 isRunning = uiState.isTimerRunning,
@@ -326,12 +365,107 @@ fun RoastingRunScreen(
 
         if (uiState.showBurnerDialog) {
             val event = uiState.setupData.burnerPlan.getOrNull(uiState.currentBurnerIndex)
-            BurnerAlertDialog(
-                power = event?.temperature?.toInt()?.toString() ?: "-",
+            AutoCloseAlertDialog(
+                icon = Icons.Default.Whatshot,
+                iconTint = Color(0xFFE64A19),
+                title = "Change Burner",
+                value = event?.temperature?.toInt()?.toString() ?: "-",
                 time = event?.time ?: "-",
                 onDismiss = { viewModel.dismissBurnerDialog() }
             )
         }
+
+        // Check for Air Flow and RPM events based on elapsed time
+        val currentAirFlowEvent = uiState.setupData.airFlowPlan.find { it.seconds == uiState.elapsedSeconds }
+        if (currentAirFlowEvent != null) {
+            AutoCloseAlertDialog(
+                icon = Icons.Default.Air,
+                iconTint = Color(0xFF0288D1),
+                title = "Change Air Flow",
+                value = currentAirFlowEvent.temperature.toInt().toString(),
+                time = currentAirFlowEvent.time,
+                onDismiss = { /* Auto-close handled in component */ }
+            )
+        }
+
+        val currentRpmEvent = uiState.setupData.rpmPlan.find { it.seconds == uiState.elapsedSeconds }
+        if (currentRpmEvent != null) {
+            AutoCloseAlertDialog(
+                icon = Icons.Default.Sync,
+                iconTint = Color(0xFF43A047),
+                title = "Change RPM Drum",
+                value = currentRpmEvent.temperature.toInt().toString(),
+                time = currentRpmEvent.time,
+                onDismiss = { /* Auto-close handled in component */ }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun RowScope.PlanSummarySection(title: String, events: List<RoastingEvent>) {
+    if (events.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.weight(1f)) {
+        Text(text = title, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        events.forEach { event ->
+            Surface(
+                shape = MaterialTheme.shapes.extraSmall,
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                modifier = Modifier.padding(bottom = 2.dp)
+            ) {
+                Text(
+                    text = "${event.temperature.toInt()}|${event.time}",
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AutoCloseAlertDialog(
+    icon: ImageVector,
+    iconTint: Color,
+    title: String,
+    value: String,
+    time: String,
+    onDismiss: () -> Unit
+) {
+    LaunchedEffect(time) {
+        delay(4000)
+        onDismiss()
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(imageVector = icon, contentDescription = null, tint = iconTint)
+                Text(title)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(text = "Target: $value", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold)
+                Text(text = "At time: $time", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        }
+    )
+}
+
+@Composable
+fun InfoItem(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text = value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -415,15 +549,5 @@ fun TemperatureInputDialog(
                 onDismiss()
             }) { Text("Batal") }
         }
-    )
-}
-
-@Composable
-fun BurnerAlertDialog(power: String, time: String, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Atur Burner") },
-        text = { Text("Waktu $time: Ubah burner ke $power") },
-        confirmButton = { Button(onClick = onDismiss) { Text("OK") } }
     )
 }
