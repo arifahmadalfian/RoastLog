@@ -320,7 +320,7 @@ class RoastingRunViewModel : ViewModel() {
             val rorValue = if (intervalNum > 0 && currentTemp != null && prevTemp != null) currentTemp - prevTemp else null
             
             ChartDataPoint(
-                intervalNumber = intervalNum.toInt(),
+                intervalNumber = intervalNum.toFloat(),
                 totalSeconds = secondsAtThisInterval,
                 temperature = currentTemp,
                 ror = rorValue
@@ -330,7 +330,7 @@ class RoastingRunViewModel : ViewModel() {
         val runningState = _uiState.value
         listOfNotNull(runningState.actualTurnPoint, runningState.actualYellowing, runningState.actualFirstCrack, runningState.actualEndRoast).forEach { ev ->
             points.add(ChartDataPoint(
-                intervalNumber = ev.seconds.toInt() / interval,
+                intervalNumber = ev.seconds.toFloat() / interval,
                 totalSeconds = ev.seconds,
                 temperature = ev.temperature,
                 ror = null

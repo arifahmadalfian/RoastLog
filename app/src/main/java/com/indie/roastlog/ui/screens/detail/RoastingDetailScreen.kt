@@ -77,7 +77,6 @@ fun RoastingDetail(
                     val interval = s.intervalSeconds
                     val dataMap = s.temperatureData.associateBy { it.intervalNumber }
                     
-                    // Filter out duplicate or inconsistent intervals if any, and ensure sorted
                     val maxIntervalNum = s.temperatureData.maxOfOrNull { it.intervalNumber } ?: 0
                     
                     val points = (0..maxIntervalNum).map { intervalNum ->
@@ -87,11 +86,10 @@ fun RoastingDetail(
                         val prevTemp = if (intervalNum > 0) dataMap[intervalNum - 1]?.temperature else null
                         val rorValue = if (intervalNum > 0 && currentTemp != null && prevTemp != null) currentTemp - prevTemp else null
                         
-                        // Find burner power for this specific time
                         val burnerPower = s.burnerPlan.find { it.seconds == secondsAtThisInterval }?.temperature?.toInt()?.toString() ?: ""
 
                         ChartDataPoint(
-                            intervalNumber = intervalNum,
+                            intervalNumber = intervalNum.toFloat(),
                             totalSeconds = secondsAtThisInterval,
                             temperature = currentTemp,
                             ror = rorValue,
@@ -101,7 +99,7 @@ fun RoastingDetail(
                     
                     listOfNotNull(s.turnPoint, s.yellowing, s.firstCrack, s.endRoast).forEach { ev ->
                         points.add(ChartDataPoint(
-                            intervalNumber = ev.seconds / interval,
+                            intervalNumber = ev.seconds.toFloat() / interval,
                             totalSeconds = ev.seconds,
                             temperature = ev.temperature,
                             ror = null

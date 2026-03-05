@@ -27,6 +27,7 @@ import java.util.Date
 import java.util.Locale
 import androidx.core.graphics.toColorInt
 import androidx.core.graphics.createBitmap
+import kotlin.math.roundToInt
 
 data class RoastSessionData(
     val beanType: String,
@@ -223,9 +224,9 @@ class PdfExportManager(private val context: Context) {
                 // Redraw header on new page if needed, but for simplicity let's just continue
             }
             
-            val timeStr = formatTime(point.intervalNumber.toInt(), data.intervalSeconds)
+            val timeStr = formatTime(point.intervalNumber, data.intervalSeconds)
             val tempStr = point.temperature?.toString() ?: "-"
-            val rorStr = point.ror?.let { String.format(Locale.getDefault(), "%.1f", it) } ?: "-"
+            val rorStr = point.ror?.let { String.format(Locale.getDefault(), "%d", it) } ?: "-"
             
             currentX = 50f
             val rowValues = listOf(timeStr, tempStr, rorStr, point.airFlowPower, point.rpmDrum, point.burnerPower)
@@ -295,12 +296,12 @@ class PdfExportManager(private val context: Context) {
         }
     }
 
-    private fun formatTime(intervalNum: Int, intervalSeconds: Int): String {
-        val totalSeconds = intervalNum * intervalSeconds
+    private fun formatTime(intervalNum: Float, intervalSeconds: Int): String {
+        val totalSeconds = (intervalNum * intervalSeconds).roundToInt()
         val minutes = totalSeconds / 60
         val seconds = totalSeconds % 60
-        return if (intervalSeconds >= 60) "$minutes"
-        else String.format(Locale.getDefault(), "%d.%02d", minutes, seconds)
+        return if (seconds == 0) "$minutes"
+        else String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
     }
 
     private fun createChartBitmap(data: RoastSessionData): Bitmap {
@@ -337,7 +338,7 @@ class PdfExportManager(private val context: Context) {
             xAxis.apply {
                 position = XAxis.XAxisPosition.BOTTOM
                 setDrawGridLines(true)
-                granularity = 1f
+                granularity = 0.1f
                 textColor = Color.BLACK
                 textSize = 7f 
                 axisMinimum = 0f
@@ -347,14 +348,14 @@ class PdfExportManager(private val context: Context) {
                 labelRotationAngle = -45f
                 valueFormatter = object : ValueFormatter() {
                     override fun getFormattedValue(value: Float): String {
-                        return formatTime(value.toInt(), data.intervalSeconds)
+                        return formatTime(value, data.intervalSeconds)
                     }
                 }
             }
         }
 
         val entries = data.temperatureData.mapNotNull { point ->
-            point.temperature?.let { Entry(point.intervalNumber.toFloat(), it.toFloat()) }
+            point.temperature?.let { Entry(point.intervalNumber, it.toFloat()) }
         }
 
         val dataSet = LineDataSet(entries, "Temperature").apply {
