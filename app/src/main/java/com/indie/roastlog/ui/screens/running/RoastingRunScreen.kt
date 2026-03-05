@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.WbSunny
@@ -281,9 +282,7 @@ fun RoastingRunScreen(
                             iconColor = Color(0xFFF44336),
                             onConfirm = { 
                                 viewModel.markEndRoast(it)
-                                viewModel.saveToDatabase(context)
                                 eventMarkDialogData = null
-                                onFinish() 
                             }
                         )
                     },
@@ -336,6 +335,24 @@ fun RoastingRunScreen(
                     Spacer(Modifier.width(8.dp))
                     Text("Export PDF")
                 }
+            }
+
+            // Save Button
+            Button(
+                onClick = {
+                    viewModel.saveToDatabase(context)
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Data berhasil disimpan ke database")
+                    }
+                    onFinish()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                enabled = uiState.intervalDataList.isNotEmpty()
+            ) {
+                Icon(Icons.Default.Save, null)
+                Spacer(Modifier.width(8.dp))
+                Text("Simpan Roasting")
             }
         }
 
@@ -592,7 +609,7 @@ fun AutoCloseAlertDialog(
     onDismiss: () -> Unit
 ) {
     LaunchedEffect(time) {
-        delay(4000)
+        delay(5000)
         onDismiss()
     }
     AlertDialog(
