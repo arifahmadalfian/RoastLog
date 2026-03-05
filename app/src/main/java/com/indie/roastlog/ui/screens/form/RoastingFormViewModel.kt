@@ -23,7 +23,7 @@ data class RoastingFormState(
     val rpmDrum: String = "0",
     val burnerPower: String = "0",
     
-    // Event Setup (Manual target points)
+    // Event Setup (Manual target points) - Kept in state for use during running
     val setupTurnPoint: RoastingEvent? = null,
     val setupYellowing: RoastingEvent? = null,
     val setupFirstCrack: RoastingEvent? = null,
