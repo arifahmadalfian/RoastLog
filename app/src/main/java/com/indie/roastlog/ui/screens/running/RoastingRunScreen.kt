@@ -700,13 +700,8 @@ fun TemperatureInputDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { input.toFloatOrNull()?.let { onConfirm(it) } }) { Text("OK") }
+            Button(onClick = { input.toFloatOrNull()?.let { onConfirm(it) } }) { Text("Submit") }
         },
-        dismissButton = {
-            TextButton(onClick = {
-                input = ""
-                onDismiss()
-            }) { Text("Batal") }
-        }
+        dismissButton = {}
     )
 }
