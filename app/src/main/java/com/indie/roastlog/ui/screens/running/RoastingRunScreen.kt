@@ -2,6 +2,8 @@ package com.indie.roastlog.ui.screens.running
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Air
@@ -16,14 +18,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.indie.roastlog.pdf.PdfExportManager
 import com.indie.roastlog.pdf.RoastSessionData
@@ -37,6 +43,13 @@ import com.indie.roastlog.ui.model.RoastingEvent
 import java.util.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+data class EventMarkDialogData(
+    val title: String,
+    val icon: ImageVector,
+    val iconColor: Color,
+    val onConfirm: (Float) -> Unit
+)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -57,6 +70,8 @@ fun RoastingRunScreen(
     var selectedRevisionInterval by remember { mutableStateOf<Int?>(null) }
     var revisionTemperatureInput by remember { mutableStateOf("") }
     var revisionDropdownExpanded by remember { mutableStateOf(false) }
+    
+    var eventMarkDialogData by remember { mutableStateOf<EventMarkDialogData?>(null) }
 
     // Initialize ViewModel with passed data
     LaunchedEffect(formState) {
@@ -186,13 +201,21 @@ fun RoastingRunScreen(
             ) {
                 // Turn Point
                 Button(
-                    onClick = { 
-                        val lastTemp = uiState.intervalDataList.lastOrNull()?.temperature ?: 0f
-                        viewModel.markTurnPoint(lastTemp)
+                    onClick = {
+                        eventMarkDialogData = EventMarkDialogData(
+                            title = "Turn P",
+                            icon = Icons.Default.TrendingDown,
+                            iconColor = Color(0xFF2196F3),
+                            onConfirm = { 
+                                viewModel.markTurnPoint(it)
+                                eventMarkDialogData = null
+                            }
+                        )
                     },
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
+                    enabled = uiState.isTimerRunning
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 4.dp)) {
                         Icon(Icons.Default.TrendingDown, contentDescription = null, modifier = Modifier.size(20.dp))
@@ -202,13 +225,21 @@ fun RoastingRunScreen(
 
                 // Yellowing
                 Button(
-                    onClick = { 
-                        val lastTemp = uiState.intervalDataList.lastOrNull()?.temperature ?: 0f
-                        viewModel.markYellowing(lastTemp)
+                    onClick = {
+                        eventMarkDialogData = EventMarkDialogData(
+                            title = "Yellow",
+                            icon = Icons.Default.WbSunny,
+                            iconColor = Color(0xFFFFEB3B),
+                            onConfirm = { 
+                                viewModel.markYellowing(it)
+                                eventMarkDialogData = null
+                            }
+                        )
                     },
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEB3B), contentColor = Color.Black)
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEB3B), contentColor = Color.Black),
+                    enabled = uiState.isTimerRunning
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 4.dp)) {
                         Icon(Icons.Default.WbSunny, contentDescription = null, modifier = Modifier.size(20.dp))
@@ -218,13 +249,21 @@ fun RoastingRunScreen(
                 
                 // 1st Crack
                 Button(
-                    onClick = { 
-                        val lastTemp = uiState.intervalDataList.lastOrNull()?.temperature ?: 0f
-                        viewModel.markFirstCrack(lastTemp)
+                    onClick = {
+                        eventMarkDialogData = EventMarkDialogData(
+                            title = "1st Crack",
+                            icon = Icons.Default.Whatshot,
+                            iconColor = Color(0xFFFF9800),
+                            onConfirm = { 
+                                viewModel.markFirstCrack(it)
+                                eventMarkDialogData = null
+                            }
+                        )
                     },
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
+                    enabled = uiState.isTimerRunning
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 4.dp)) {
                         Icon(Icons.Default.Whatshot, contentDescription = null, modifier = Modifier.size(20.dp))
@@ -234,15 +273,23 @@ fun RoastingRunScreen(
                 
                 // Finish
                 Button(
-                    onClick = { 
-                        val lastTemp = uiState.intervalDataList.lastOrNull()?.temperature ?: 0f
-                        viewModel.markEndRoast(lastTemp)
-                        viewModel.saveToDatabase(context)
-                        onFinish() 
+                    onClick = {
+                        eventMarkDialogData = EventMarkDialogData(
+                            title = "Finish",
+                            icon = Icons.Default.Flag,
+                            iconColor = Color(0xFFF44336),
+                            onConfirm = { 
+                                viewModel.markEndRoast(it)
+                                viewModel.saveToDatabase(context)
+                                eventMarkDialogData = null
+                                onFinish() 
+                            }
+                        )
                     },
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336)),
+                    enabled = uiState.isTimerRunning
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 4.dp)) {
                         Icon(Icons.Default.Flag, contentDescription = null, modifier = Modifier.size(20.dp))
@@ -289,6 +336,56 @@ fun RoastingRunScreen(
                     Text("Export PDF")
                 }
             }
+        }
+
+        // Event Mark Dialog (Turn P, Yellow, 1st Crack, Finish)
+        eventMarkDialogData?.let { data ->
+            val focusRequester = remember { FocusRequester() }
+            var input by remember { mutableStateOf("") }
+            
+            AlertDialog(
+                onDismissRequest = { /* Not closable */ },
+                properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
+                icon = { Icon(data.icon, contentDescription = null, tint = data.iconColor, modifier = Modifier.size(32.dp)) },
+                title = { Text(data.title) },
+                text = {
+                    Column {
+                        OutlinedTextField(
+                            value = input,
+                            onValueChange = { input = it.filter { char -> char.isDigit() || char == '.' } },
+                            label = { Text("Suhu (°C)") },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = {
+                                    if (input.isNotEmpty()) {
+                                        input.toFloatOrNull()?.let { data.onConfirm(it) }
+                                    }
+                                }
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester)
+                        )
+                        LaunchedEffect(Unit) {
+                            focusRequester.requestFocus()
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = { 
+                            input.toFloatOrNull()?.let { data.onConfirm(it) }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = input.isNotEmpty()
+                    ) {
+                        Text("Submit")
+                    }
+                }
+            )
         }
 
         // Revision Dialog
@@ -351,7 +448,18 @@ fun RoastingRunScreen(
                             value = revisionTemperatureInput,
                             onValueChange = { revisionTemperatureInput = it.filter { char -> char.isDigit() || char == '.' } },
                             label = { Text("Suhu (°C)") },
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = {
+                                    if (revisionTemperatureInput.isNotEmpty()) {
+                                        selectedRevisionInterval?.let { viewModel.updateTemperatureAtInterval(it, revisionTemperatureInput.toFloatOrNull() ?: 0f) }
+                                        showRevisionDialog = false
+                                    }
+                                }
+                            ),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -408,7 +516,7 @@ fun RoastingRunScreen(
             AutoCloseAlertDialog(
                 icon = Icons.Default.Whatshot,
                 iconTint = Color(0xFFE64A19),
-                title = "Change Burner",
+                title = "Burner Power",
                 value = event?.temperature?.toInt()?.toString() ?: "-",
                 time = event?.time ?: "-",
                 onDismiss = { viewModel.dismissBurnerDialog() }
@@ -421,7 +529,7 @@ fun RoastingRunScreen(
             AutoCloseAlertDialog(
                 icon = Icons.Default.Air,
                 iconTint = Color(0xFF0288D1),
-                title = "Change Air Flow",
+                title = "Air Flow Power",
                 value = currentAirFlowEvent.temperature.toInt().toString(),
                 time = currentAirFlowEvent.time,
                 onDismiss = { /* Auto-close handled in component */ }
@@ -433,7 +541,7 @@ fun RoastingRunScreen(
             AutoCloseAlertDialog(
                 icon = Icons.Default.Sync,
                 iconTint = Color(0xFF43A047),
-                title = "Change RPM Drum",
+                title = "RPM Drum Speed",
                 value = currentRpmEvent.temperature.toInt().toString(),
                 time = currentRpmEvent.time,
                 onDismiss = { /* Auto-close handled in component */ }
@@ -573,6 +681,17 @@ fun TemperatureInputDialog(
                     value = input,
                     onValueChange = { input = it.filter { char -> char.isDigit() || char == '.' } },
                     label = { Text("Suhu (°C)") },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            if (input.isNotEmpty()) {
+                                input.toFloatOrNull()?.let { onConfirm(it) }
+                            }
+                        }
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
                 if (voiceState is VoiceRecognitionState.Listening) {
