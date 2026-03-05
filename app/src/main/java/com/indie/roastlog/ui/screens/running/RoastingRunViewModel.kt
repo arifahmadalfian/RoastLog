@@ -92,23 +92,70 @@ class RoastingRunViewModel : ViewModel() {
         }
     }
 
+    private fun getRorValue(temp: Float, seconds: Int): Float? {
+        val state = _uiState.value
+        val intervalSec = state.setupData.intervalSeconds.toIntOrNull() ?: 60
+        
+        val points = mutableListOf<Pair<Int, Float>>()
+        state.intervalDataList.forEach { 
+            points.add(it.intervalNumber * intervalSec to it.temperature) 
+        }
+        
+        listOfNotNull(state.actualTurnPoint, state.actualYellowing, state.actualFirstCrack, state.actualEndRoast)
+            .forEach { points.add(it.seconds to it.temperature) }
+            
+        val prevPoint = points.filter { it.first < seconds }.maxByOrNull { it.first }
+        
+        return if (prevPoint != null) {
+            val tempDiff = temp - prevPoint.second
+            val timeDiffSeconds = seconds - prevPoint.first
+            if (timeDiffSeconds > 0) {
+                (tempDiff / timeDiffSeconds) * intervalSec
+            } else null
+        } else null
+    }
+
     fun markTurnPoint(temp: Float) {
-        _uiState.update { it.copy(actualTurnPoint = RoastingEvent(temp, (it.elapsedMillis / 1000).toInt())) }
+        val seconds = (_uiState.value.elapsedMillis / 1000).toInt()
+        val ror = getRorValue(temp, seconds)
+        _uiState.update { it.copy(
+            actualTurnPoint = RoastingEvent(temp, seconds),
+            showRorDialog = true,
+            lastRorValue = ror
+        ) }
         updateResults()
     }
 
     fun markYellowing(temp: Float) {
-        _uiState.update { it.copy(actualYellowing = RoastingEvent(temp, (it.elapsedMillis / 1000).toInt())) }
+        val seconds = (_uiState.value.elapsedMillis / 1000).toInt()
+        val ror = getRorValue(temp, seconds)
+        _uiState.update { it.copy(
+            actualYellowing = RoastingEvent(temp, seconds),
+            showRorDialog = true,
+            lastRorValue = ror
+        ) }
         updateResults()
     }
 
     fun markFirstCrack(temp: Float) {
-        _uiState.update { it.copy(actualFirstCrack = RoastingEvent(temp, (it.elapsedMillis / 1000).toInt())) }
+        val seconds = (_uiState.value.elapsedMillis / 1000).toInt()
+        val ror = getRorValue(temp, seconds)
+        _uiState.update { it.copy(
+            actualFirstCrack = RoastingEvent(temp, seconds),
+            showRorDialog = true,
+            lastRorValue = ror
+        ) }
         updateResults()
     }
 
     fun markEndRoast(temp: Float) {
-        _uiState.update { it.copy(actualEndRoast = RoastingEvent(temp, (it.elapsedMillis / 1000).toInt())) }
+        val seconds = (_uiState.value.elapsedMillis / 1000).toInt()
+        val ror = getRorValue(temp, seconds)
+        _uiState.update { it.copy(
+            actualEndRoast = RoastingEvent(temp, seconds),
+            showRorDialog = true,
+            lastRorValue = ror
+        ) }
         updateResults()
         stopTimer()
     }
@@ -200,21 +247,16 @@ class RoastingRunViewModel : ViewModel() {
     fun dismissBurnerDialog() { _uiState.update { it.copy(showBurnerDialog = false) } }
 
     fun addTemperature(temperature: Float) {
+        val intervalSec = _uiState.value.setupData.intervalSeconds.toIntOrNull() ?: 60
+        val seconds = _uiState.value.currentInterval * intervalSec
+        val rorValue = getRorValue(temperature, seconds)
+
         _uiState.update { currentState ->
             val newIntervalData = IntervalData(
                 intervalNumber = currentState.currentInterval,
                 temperature = temperature
             )
             val newData = currentState.intervalDataList + newIntervalData
-
-            val previousData = currentState.intervalDataList
-                .filter { it.intervalNumber < currentState.currentInterval }
-                .maxByOrNull { it.intervalNumber }
-            val rorValue = if (previousData != null) {
-                val tempDiff = temperature - previousData.temperature
-                val intervalDiff = currentState.currentInterval - previousData.intervalNumber
-                if (intervalDiff > 0) tempDiff / intervalDiff else null
-            } else null
 
             currentState.copy(
                 intervalDataList = newData,
