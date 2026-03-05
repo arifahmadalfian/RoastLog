@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Air
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.TrendingDown
@@ -482,8 +483,17 @@ fun RoastingRunScreen(
                 intervalNumber = uiState.currentInterval,
                 elapsedTime = formatRunTime(uiState.elapsedSeconds),
                 voiceState = voiceState,
-                onDismiss = { viewModel.dismissTemperatureDialog() },
-                onConfirm = { viewModel.addTemperature(it) }
+                onVoiceClick = { voiceRecognizer.startListening(context) },
+                onDismiss = { 
+                    voiceRecognizer.stopListening()
+                    voiceRecognizer.resetState()
+                    viewModel.dismissTemperatureDialog() 
+                },
+                onConfirm = { 
+                    voiceRecognizer.stopListening()
+                    voiceRecognizer.resetState()
+                    viewModel.addTemperature(it) 
+                }
             )
         }
 
@@ -667,20 +677,42 @@ fun TemperatureInputDialog(
     intervalNumber: Int,
     elapsedTime: String,
     voiceState: VoiceRecognitionState,
+    onVoiceClick: () -> Unit,
     onDismiss: () -> Unit,
     onConfirm: (Float) -> Unit
 ) {
     var input by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    LaunchedEffect(voiceState) {
+        if (voiceState is VoiceRecognitionState.Success) {
+            input = voiceState.number.toString()
+        }
+    }
     
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Input Suhu #$intervalNumber ($elapsedTime)") },
         text = {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = input,
                     onValueChange = { input = it.filter { char -> char.isDigit() || char == '.' } },
                     label = { Text("Suhu (°C)") },
+                    trailingIcon = {
+                        IconButton(onClick = onVoiceClick) {
+                            Icon(
+                                imageVector = Icons.Default.Mic,
+                                contentDescription = "Voice Input",
+                                tint = if (voiceState is VoiceRecognitionState.Listening) 
+                                    MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,
                         imeAction = ImeAction.Done
@@ -692,16 +724,26 @@ fun TemperatureInputDialog(
                             }
                         }
                     ),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
                 )
                 if (voiceState is VoiceRecognitionState.Listening) {
                     Text("Mendengarkan...", color = MaterialTheme.colorScheme.primary)
                 }
+                if (voiceState is VoiceRecognitionState.Error) {
+                    Text(voiceState.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
             }
         },
         confirmButton = {
-            Button(onClick = { input.toFloatOrNull()?.let { onConfirm(it) } }) { Text("Submit") }
+            Button(
+                onClick = { input.toFloatOrNull()?.let { onConfirm(it) } },
+                enabled = input.isNotEmpty()
+            ) { Text("Submit") }
         },
-        dismissButton = {}
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Batal") }
+        }
     )
 }
