@@ -9,14 +9,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.toRoute
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.ui.NavDisplay
 import com.indie.roastlog.ui.screens.detail.RoastingDetail
 import com.indie.roastlog.ui.screens.form.RoastingFormScreen
 import com.indie.roastlog.ui.screens.form.RoastingFormState
@@ -25,11 +26,11 @@ import com.indie.roastlog.ui.screens.running.RoastingRunScreen
 import com.indie.roastlog.ui.theme.RoastLogTheme
 import kotlinx.serialization.Serializable
 
-// Definisikan Route secara Type-Safe
-@Serializable object HistoryRoute
-@Serializable object FormRoute
-@Serializable data class RunRoute(val state: RoastingFormState)
-@Serializable data class DetailRoute(val id: String)
+// Definisikan Route secara Type-Safe dan implementasi NavKey untuk Navigation 3
+@Serializable object HistoryRoute : NavKey
+@Serializable object FormRoute : NavKey
+@Serializable data class RunRoute(val state: RoastingFormState) : NavKey
+@Serializable data class DetailRoute(val id: String) : NavKey
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,34 +60,44 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun RoastLogApp() {
-    val navController = rememberNavController()
-    
-    NavHost(navController = navController, startDestination = HistoryRoute) {
-        composable<HistoryRoute> {
+    val navigationState = rememberNavigationState(
+        startRoute = HistoryRoute,
+        topLevelRoutes = setOf(HistoryRoute)
+    )
+    val navigator = remember { Navigator(navigationState) }
+
+    val entryProvider: (NavKey) -> NavEntry<NavKey> = entryProvider {
+        entry<HistoryRoute> {
             RoastingHistoryScreen(
-                onAddClick = { navController.navigate(FormRoute) },
-                onItemClick = { id -> navController.navigate(DetailRoute(id)) }
+                onAddClick = { navigator.navigate(FormRoute) },
+                onItemClick = { id -> navigator.navigate(DetailRoute(id)) }
             )
         }
         
-        composable<FormRoute> {
+        entry<FormRoute> {
             RoastingFormScreen(
                 onStartRoast = { formState ->
-                    navController.navigate(RunRoute(formState))
+                    navigator.navigate(RunRoute(formState))
                 }
             )
         }
         
-        composable<RunRoute> { backStackEntry ->
-            val route: RunRoute = backStackEntry.toRoute()
-            RoastingRunScreen(formState = route.state)
+        entry<RunRoute> { key ->
+            RoastingRunScreen(
+                onFinish = { navigator.navigate(HistoryRoute) },
+                formState = key.state
+            )
         }
         
-        composable<DetailRoute> { backStackEntry ->
-            val route: DetailRoute = backStackEntry.toRoute()
-            RoastingDetail(roastId = route.id)
+        entry<DetailRoute> { key ->
+            RoastingDetail(roastId = key.id)
         }
     }
+
+    NavDisplay(
+        entries = navigationState.toEntries(entryProvider),
+        onBack = { navigator.goBack() }
+    )
 }
 
 @Preview(showBackground = true)
