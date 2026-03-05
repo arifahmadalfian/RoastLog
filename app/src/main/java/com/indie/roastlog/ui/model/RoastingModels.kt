@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class IntervalData(
     val intervalNumber: Int,
-    val temperature: Float,
+    val temperature: Int,
     val airFlowPower: String = "",
     val rpmDrum: String = "",
     val burnerPower: String = ""
@@ -13,7 +13,7 @@ data class IntervalData(
 
 @Serializable
 data class RoastingEvent(
-    val temperature: Float,
+    val temperature: Int,
     val seconds: Int
 ) {
     val time: String

@@ -77,7 +77,7 @@ interface RoastDao {
     suspend fun getSessionById(id: Long): RoastSessionEntity?
 }
 
-@Database(entities = [RoastSessionEntity::class], version = 3, exportSchema = false)
+@Database(entities = [RoastSessionEntity::class], version = 4, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class RoastDatabase : RoomDatabase() {
     abstract fun roastDao(): RoastDao

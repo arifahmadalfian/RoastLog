@@ -44,7 +44,7 @@ data class RoastingRunState(
     
     // ROR Dialog
     val showRorDialog: Boolean = false,
-    val lastRorValue: Float? = null,
+    val lastRorValue: Int? = null,
     
     // Burner Dialog
     val showBurnerDialog: Boolean = false,
@@ -92,11 +92,11 @@ class RoastingRunViewModel : ViewModel() {
         }
     }
 
-    private fun getRorValue(temp: Float, seconds: Int): Float? {
+    private fun getRorValue(temp: Int, seconds: Int): Int? {
         val state = _uiState.value
         val intervalSec = state.setupData.intervalSeconds.toIntOrNull() ?: 60
         
-        val points = mutableListOf<Pair<Int, Float>>()
+        val points = mutableListOf<Pair<Int, Int>>()
         state.intervalDataList.forEach { 
             points.add(it.intervalNumber * intervalSec to it.temperature) 
         }
@@ -115,7 +115,7 @@ class RoastingRunViewModel : ViewModel() {
         } else null
     }
 
-    fun markTurnPoint(temp: Float) {
+    fun markTurnPoint(temp: Int) {
         val seconds = (_uiState.value.elapsedMillis / 1000).toInt()
         val ror = getRorValue(temp, seconds)
         _uiState.update { it.copy(
@@ -126,7 +126,7 @@ class RoastingRunViewModel : ViewModel() {
         updateResults()
     }
 
-    fun markYellowing(temp: Float) {
+    fun markYellowing(temp: Int) {
         val seconds = (_uiState.value.elapsedMillis / 1000).toInt()
         val ror = getRorValue(temp, seconds)
         _uiState.update { it.copy(
@@ -137,7 +137,7 @@ class RoastingRunViewModel : ViewModel() {
         updateResults()
     }
 
-    fun markFirstCrack(temp: Float) {
+    fun markFirstCrack(temp: Int) {
         val seconds = (_uiState.value.elapsedMillis / 1000).toInt()
         val ror = getRorValue(temp, seconds)
         _uiState.update { it.copy(
@@ -148,7 +148,7 @@ class RoastingRunViewModel : ViewModel() {
         updateResults()
     }
 
-    fun markEndRoast(temp: Float) {
+    fun markEndRoast(temp: Int) {
         val seconds = (_uiState.value.elapsedMillis / 1000).toInt()
         val ror = getRorValue(temp, seconds)
         _uiState.update { it.copy(
@@ -169,7 +169,7 @@ class RoastingRunViewModel : ViewModel() {
         val setup = _uiState.value.setupData
         val duration = setup.targetDuration.toIntOrNull() ?: return
         val interval = setup.intervalSeconds.toIntOrNull() ?: return
-        val startTemp = setup.chargeTimeTemp.toFloatOrNull() ?: return
+        val startTemp = setup.chargeTimeTemp.toIntOrNull() ?: return
 
         _uiState.update { it.copy(isTimerRunning = true) }
         lastInterval = 0
@@ -246,7 +246,7 @@ class RoastingRunViewModel : ViewModel() {
 
     fun dismissBurnerDialog() { _uiState.update { it.copy(showBurnerDialog = false) } }
 
-    fun addTemperature(temperature: Float) {
+    fun addTemperature(temperature: Int) {
         val intervalSec = _uiState.value.setupData.intervalSeconds.toIntOrNull() ?: 60
         val seconds = _uiState.value.currentInterval * intervalSec
         val rorValue = getRorValue(temperature, seconds)
@@ -292,7 +292,7 @@ class RoastingRunViewModel : ViewModel() {
         }
     }
 
-    fun updateTemperatureAtInterval(interval: Int, temperature: Float) {
+    fun updateTemperatureAtInterval(interval: Int, temperature: Int) {
         _uiState.update { currentState ->
             val updated = currentState.intervalDataList
                 .filterNot { it.intervalNumber == interval }
@@ -320,7 +320,7 @@ class RoastingRunViewModel : ViewModel() {
             val rorValue = if (intervalNum > 0 && currentTemp != null && prevTemp != null) currentTemp - prevTemp else null
             
             ChartDataPoint(
-                intervalNumber = intervalNum.toFloat(),
+                intervalNumber = intervalNum.toInt(),
                 totalSeconds = secondsAtThisInterval,
                 temperature = currentTemp,
                 ror = rorValue
@@ -330,7 +330,7 @@ class RoastingRunViewModel : ViewModel() {
         val runningState = _uiState.value
         listOfNotNull(runningState.actualTurnPoint, runningState.actualYellowing, runningState.actualFirstCrack, runningState.actualEndRoast).forEach { ev ->
             points.add(ChartDataPoint(
-                intervalNumber = ev.seconds.toFloat() / interval,
+                intervalNumber = ev.seconds.toInt() / interval,
                 totalSeconds = ev.seconds,
                 temperature = ev.temperature,
                 ror = null

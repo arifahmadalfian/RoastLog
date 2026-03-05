@@ -49,7 +49,7 @@ data class EventMarkDialogData(
     val title: String,
     val icon: ImageVector,
     val iconColor: Color,
-    val onConfirm: (Float) -> Unit
+    val onConfirm: (Int) -> Unit
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -104,7 +104,7 @@ fun RoastingRunScreen(
             burnerEvents = currentSetup.burnerPlan.map { "${it.temperature.toInt()} / ${it.time}" },
             targetDuration = currentSetup.targetDuration.toIntOrNull() ?: 0,
             intervalSeconds = currentSetup.intervalSeconds.toIntOrNull() ?: 60,
-            startTemperature = currentSetup.chargeTimeTemp.toFloatOrNull() ?: 70f,
+            startTemperature = currentSetup.chargeTimeTemp.toIntOrNull() ?: 70,
             temperatureData = viewModel.getChartData()
         )
         pdfManager.exportRoastSessionToPdf(roastData)
@@ -382,7 +382,7 @@ fun RoastingRunScreen(
                             keyboardActions = KeyboardActions(
                                 onDone = {
                                     if (input.isNotEmpty()) {
-                                        input.toFloatOrNull()?.let { data.onConfirm(it) }
+                                        input.toIntOrNull()?.let { data.onConfirm(it) }
                                     }
                                 }
                             ),
@@ -400,7 +400,7 @@ fun RoastingRunScreen(
                 confirmButton = {
                     Button(
                         onClick = { 
-                            input.toFloatOrNull()?.let { data.onConfirm(it) }
+                            input.toIntOrNull()?.let { data.onConfirm(it) }
                         },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = input.isNotEmpty()
@@ -478,7 +478,7 @@ fun RoastingRunScreen(
                             keyboardActions = KeyboardActions(
                                 onDone = {
                                     if (revisionTemperatureInput.isNotEmpty()) {
-                                        selectedRevisionInterval?.let { viewModel.updateTemperatureAtInterval(it, revisionTemperatureInput.toFloatOrNull() ?: 0f) }
+                                        selectedRevisionInterval?.let { viewModel.updateTemperatureAtInterval(it, revisionTemperatureInput.toIntOrNull() ?: 0) }
                                         showRevisionDialog = false
                                     }
                                 }
@@ -489,7 +489,7 @@ fun RoastingRunScreen(
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        selectedRevisionInterval?.let { viewModel.updateTemperatureAtInterval(it, revisionTemperatureInput.toFloatOrNull() ?: 0f) }
+                        selectedRevisionInterval?.let { viewModel.updateTemperatureAtInterval(it, revisionTemperatureInput.toIntOrNull() ?: 0) }
                         showRevisionDialog = false
                     }) { Text("Submit") }
                 },
@@ -704,7 +704,7 @@ fun TemperatureInputDialog(
     voiceState: VoiceRecognitionState,
     onVoiceClick: () -> Unit,
     onDismiss: () -> Unit,
-    onConfirm: (Float) -> Unit
+    onConfirm: (Int) -> Unit
 ) {
     var input by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
@@ -742,7 +742,7 @@ fun TemperatureInputDialog(
                     keyboardActions = KeyboardActions(
                         onDone = {
                             if (input.isNotEmpty()) {
-                                input.toFloatOrNull()?.let { onConfirm(it) }
+                                input.toIntOrNull()?.let { onConfirm(it) }
                             }
                         }
                     ),
@@ -767,7 +767,7 @@ fun TemperatureInputDialog(
         },
         confirmButton = {
             Button(
-                onClick = { input.toFloatOrNull()?.let { onConfirm(it) } },
+                onClick = { input.toIntOrNull()?.let { onConfirm(it) } },
                 enabled = input.isNotEmpty()
             ) { Text("Submit") }
         }

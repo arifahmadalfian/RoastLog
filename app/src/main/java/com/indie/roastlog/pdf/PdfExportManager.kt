@@ -55,7 +55,7 @@ data class RoastSessionData(
     // Timer & Chart
     val targetDuration: Int,
     val intervalSeconds: Int,
-    val startTemperature: Float,
+    val startTemperature: Int,
     val temperatureData: List<ChartDataPoint>,
     val roastDate: Date = Date()
 )
@@ -215,8 +215,7 @@ class PdfExportManager(private val context: Context) {
         yPosition += 12f
 
         // Draw Table Content (Filter only whole interval points like in the app)
-        val logData = data.temperatureData.filter { it.intervalNumber == it.intervalNumber.toInt().toFloat() }
-        logData.forEach { point ->
+        data.temperatureData.forEach { point ->
             // Check if we need a new page
             if (yPosition > 800f) {
                 canvas = startNewPage()
@@ -355,7 +354,7 @@ class PdfExportManager(private val context: Context) {
         }
 
         val entries = data.temperatureData.mapNotNull { point ->
-            point.temperature?.let { Entry(point.intervalNumber, it) }
+            point.temperature?.let { Entry(point.intervalNumber.toFloat(), it.toFloat()) }
         }
 
         val dataSet = LineDataSet(entries, "Temperature").apply {

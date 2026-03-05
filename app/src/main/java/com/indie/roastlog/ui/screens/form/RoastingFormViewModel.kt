@@ -31,19 +31,19 @@ data class RoastingFormState(
     
     // Plans
     val burnerPlan: List<RoastingEvent> = listOf(
-        RoastingEvent(30f, 3 * 60 + 30),
-        RoastingEvent(50f, 6 * 60 + 30),
-        RoastingEvent(70f, 9 * 60 + 30)
+        RoastingEvent(30, 3 * 60 + 30),
+        RoastingEvent(50, 6 * 60 + 30),
+        RoastingEvent(70, 9 * 60 + 30)
     ),
     val airFlowPlan: List<RoastingEvent> = listOf(
-        RoastingEvent(30f, 3 * 60 + 35),
-        RoastingEvent(50f, 6 * 60 + 35),
-        RoastingEvent(70f, 9 * 60 + 35)
+        RoastingEvent(30, 3 * 60 + 35),
+        RoastingEvent(50, 6 * 60 + 35),
+        RoastingEvent(70, 9 * 60 + 35)
     ),
     val rpmPlan: List<RoastingEvent> = listOf(
-        RoastingEvent(30f, 3 * 60 + 40),
-        RoastingEvent(50f, 6 * 60 + 40),
-        RoastingEvent(70f, 9 * 60 + 40)
+        RoastingEvent(30, 3 * 60 + 40),
+        RoastingEvent(50, 6 * 60 + 40),
+        RoastingEvent(70, 9 * 60 + 40)
     ),
     
     // Timer
@@ -67,21 +67,21 @@ class RoastingFormViewModel : ViewModel() {
     fun updateRpmDrum(value: String) { _uiState.update { it.copy(rpmDrum = filterDigits(value)) } }
     fun updateBurnerPower(value: String) { _uiState.update { it.copy(burnerPower = filterDigits(value)) } }
 
-    fun addBurnerEvent(power: Float, sec: Int) {
+    fun addBurnerEvent(power: Int, sec: Int) {
         _uiState.update { it.copy(burnerPlan = (it.burnerPlan + RoastingEvent(power, sec)).sortedBy { e -> e.seconds }) }
     }
     fun removeBurnerEvent(event: RoastingEvent) {
         _uiState.update { it.copy(burnerPlan = it.burnerPlan.filter { e -> e != event }) }
     }
 
-    fun addAirFlowEvent(power: Float, sec: Int) {
+    fun addAirFlowEvent(power: Int, sec: Int) {
         _uiState.update { it.copy(airFlowPlan = (it.airFlowPlan + RoastingEvent(power, sec)).sortedBy { e -> e.seconds }) }
     }
     fun removeAirFlowEvent(event: RoastingEvent) {
         _uiState.update { it.copy(airFlowPlan = it.airFlowPlan.filter { e -> e != event }) }
     }
 
-    fun addRpmEvent(power: Float, sec: Int) {
+    fun addRpmEvent(power: Int, sec: Int) {
         _uiState.update { it.copy(rpmPlan = (it.rpmPlan + RoastingEvent(power, sec)).sortedBy { e -> e.seconds }) }
     }
     fun removeRpmEvent(event: RoastingEvent) {

@@ -29,10 +29,10 @@ import com.github.mikephil.charting.formatter.ValueFormatter
 import java.util.Locale
 
 data class ChartDataPoint(
-    val intervalNumber: Float, // 0f, 1f, 1.5f, 2f...
+    val intervalNumber: Int, // 0f, 1f, 1.5f, 2f...
     val totalSeconds: Int,   // 0, 30, 60, 90...
-    val temperature: Float?,  // null if not yet input
-    val ror: Float?, // kenaikan suhu per interval (Rate of Rise)
+    val temperature: Int?,  // null if not yet input
+    val ror: Int?, // kenaikan suhu per interval (Rate of Rise)
     val airFlowPower: String = "",
     val rpmDrum: String = "",
     val burnerPower: String = ""
@@ -105,11 +105,11 @@ fun RoastingChart(
                             color = MaterialTheme.colorScheme.background
                         )
                     )
-                    data.filter { it.intervalNumber == it.intervalNumber.toInt().toFloat() }.forEachIndexed { index, point ->
+                    data.filter { true }.forEachIndexed { index, point ->
                         val rorText = when {
                             index == 0 -> "0"
                             point.ror == null -> "-"
-                            else -> point.ror.toInt().toString()
+                            else -> point.ror.toString()
                         }
 
                         Box(
@@ -141,7 +141,7 @@ fun RoastingChart(
                             color = MaterialTheme.colorScheme.background
                         )
                     )
-                    data.filter { it.intervalNumber == it.intervalNumber.toInt().toFloat() }.forEach { point ->
+                    data.filter { it.intervalNumber == it.intervalNumber.toInt().toInt() }.forEach { point ->
                         Box(
                             modifier = Modifier.weight(1f),
                             contentAlignment = Alignment.Center
@@ -171,7 +171,7 @@ fun RoastingChart(
                             color = MaterialTheme.colorScheme.background
                         )
                     )
-                    data.filter { it.intervalNumber == it.intervalNumber.toInt().toFloat() }.forEach { point ->
+                    data.filter { it.intervalNumber == it.intervalNumber.toInt().toInt() }.forEach { point ->
                         Box(
                             modifier = Modifier.weight(1f),
                             contentAlignment = Alignment.Center
@@ -201,7 +201,7 @@ fun RoastingChart(
                             color = MaterialTheme.colorScheme.background
                         )
                     )
-                    data.filter { it.intervalNumber == it.intervalNumber.toInt().toFloat() }.forEach { point ->
+                    data.filter { it.intervalNumber == it.intervalNumber.toInt().toInt() }.forEach { point ->
                         Box(
                             modifier = Modifier.weight(1f),
                             contentAlignment = Alignment.Center
@@ -256,8 +256,8 @@ private fun LineChart.setData(data: List<ChartDataPoint>, intervalSeconds: Int) 
     }
 
     // Set X axis maximum and formatter (original - only minutes)
-    val maxX = (data.size - 1).toFloat()
-    xAxis.axisMaximum = maxX
+    val maxX = (data.size - 1)
+    xAxis.axisMaximum = maxX.toFloat()
     xAxis.valueFormatter = TimeAxisFormatter(intervalSeconds)
     
     // Force show all labels
@@ -266,7 +266,7 @@ private fun LineChart.setData(data: List<ChartDataPoint>, intervalSeconds: Int) 
 
     // Create entries - use interval number as X value
     val entries = data.mapNotNull { point ->
-        point.temperature?.let { Entry(point.intervalNumber.toFloat(), it) }
+        point.temperature?.let { Entry(point.intervalNumber.toFloat(), it.toFloat()) }
     }
 
     // Always create dataset even if empty to show axis

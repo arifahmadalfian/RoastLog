@@ -179,7 +179,7 @@ private fun PlanInputSection(
     labelValue: String,
     fixedSeconds: Int,
     plan: List<RoastingEvent>,
-    onAdd: (Float, Int) -> Unit,
+    onAdd: (Int, Int) -> Unit,
     onRemove: (RoastingEvent) -> Unit
 ) {
     var inputValue by remember { mutableStateOf("") }
@@ -302,7 +302,7 @@ private fun PlanInputSection(
 
                     OutlinedButton(
                         onClick = {
-                            val v = inputValue.toFloatOrNull()
+                            val v = inputValue.toIntOrNull()
                             val m = inputMinute.toIntOrNull() ?: 0
                             if (v != null) {
                                 val totalSeconds = m * 60 + fixedSeconds

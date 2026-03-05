@@ -91,7 +91,7 @@ fun RoastingDetail(
                         val burnerPower = s.burnerPlan.find { it.seconds == secondsAtThisInterval }?.temperature?.toInt()?.toString() ?: ""
 
                         ChartDataPoint(
-                            intervalNumber = intervalNum.toFloat(),
+                            intervalNumber = intervalNum,
                             totalSeconds = secondsAtThisInterval,
                             temperature = currentTemp,
                             ror = rorValue,
@@ -101,7 +101,7 @@ fun RoastingDetail(
                     
                     listOfNotNull(s.turnPoint, s.yellowing, s.firstCrack, s.endRoast).forEach { ev ->
                         points.add(ChartDataPoint(
-                            intervalNumber = ev.seconds.toFloat() / interval,
+                            intervalNumber = ev.seconds / interval,
                             totalSeconds = ev.seconds,
                             temperature = ev.temperature,
                             ror = null
