@@ -26,6 +26,7 @@ import com.indie.roastlog.pdf.RoastSessionData
 import com.indie.roastlog.speech.VoiceRecognitionState
 import com.indie.roastlog.speech.VoiceRecognizerManager
 import com.indie.roastlog.ui.components.RoastingChart
+import com.indie.roastlog.ui.components.ScaffoldCustom
 import com.indie.roastlog.ui.components.SmallOutlinedTextField
 import com.indie.roastlog.ui.screens.form.RoastingFormState
 import com.indie.roastlog.ui.model.RoastingEvent
@@ -89,16 +90,16 @@ fun RoastingRunScreen(
         pdfManager.exportRoastSessionToPdf(roastData)
     }
 
-    Scaffold(
-        topBar = { TopAppBar(title = { Text("Roasting: ${uiState.setupData.beanType}") }) },
+    ScaffoldCustom(
+        title = "Roasting: ${uiState.setupData.beanType}",
         snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { paddingValues ->
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Setup Info Display (Read-only)

@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.indie.roastlog.ui.components.ScaffoldCustom
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -28,21 +29,19 @@ fun RoastingHistoryScreen(
 ) {
     val historyList by viewModel.historyList.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("History Roasting") })
-        },
+    ScaffoldCustom(
+        title = "History Roasting",
         floatingActionButton = {
             FloatingActionButton(onClick = onAddClick) {
                 Icon(Icons.Default.Add, contentDescription = "Tambah Roasting")
             }
         }
-    ) { paddingValues ->
+    ) {
         if (historyList.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues),
+                    .padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text("Belum ada history roasting")
@@ -50,9 +49,8 @@ fun RoastingHistoryScreen(
         } else {
             LazyColumn(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(16.dp),
+                    .fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(historyList) { item ->

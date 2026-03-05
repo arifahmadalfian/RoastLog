@@ -7,21 +7,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.indie.roastlog.ui.components.ScaffoldCustom
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RoastingDetail(
     roastId: String?
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Detail Roasting") })
-        }
-    ) { paddingValues ->
+    ScaffoldCustom(
+        title = "Detail Roasting"
+    ) {
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
+                .fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             Text(text = "Detail Roasting ID: $roastId (Halaman Kosong)")
