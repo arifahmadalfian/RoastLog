@@ -109,7 +109,7 @@ fun RoastingChart(
                         val rorText = when {
                             index == 0 -> "0"
                             point.ror == null -> "-"
-                            else -> String.format(Locale.getDefault(), "%.1f", point.ror)
+                            else -> point.ror.toInt().toString()
                         }
 
                         Box(

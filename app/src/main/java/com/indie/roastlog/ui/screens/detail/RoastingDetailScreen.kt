@@ -80,7 +80,7 @@ fun RoastingDetail(
                 }
 
                 if (chartData.isNotEmpty()) {
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(text = "Grafik Suhu", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
                             RoastingChart(

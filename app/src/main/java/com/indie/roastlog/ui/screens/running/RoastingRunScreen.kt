@@ -301,7 +301,7 @@ fun RoastingRunScreen(
             val chartData = viewModel.getChartData()
             val intervalSeconds = uiState.setupData.intervalSeconds.toIntOrNull() ?: 60
             if (chartData.isNotEmpty()) {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Box(modifier = Modifier.fillMaxWidth()) {
                     RoastingChart(
                         data = chartData,
                         intervalSeconds = intervalSeconds,
@@ -758,9 +758,6 @@ fun TemperatureInputDialog(
                 onClick = { input.toFloatOrNull()?.let { onConfirm(it) } },
                 enabled = input.isNotEmpty()
             ) { Text("Submit") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Batal") }
         }
     )
 }
