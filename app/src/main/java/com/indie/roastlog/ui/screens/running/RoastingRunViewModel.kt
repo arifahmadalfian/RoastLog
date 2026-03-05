@@ -92,6 +92,11 @@ class RoastingRunViewModel : ViewModel() {
         }
     }
 
+    fun markTurnPoint(temp: Float) {
+        _uiState.update { it.copy(actualTurnPoint = RoastingEvent(temp, it.elapsedSeconds)) }
+        updateResults()
+    }
+
     fun markYellowing(temp: Float) {
         _uiState.update { it.copy(actualYellowing = RoastingEvent(temp, it.elapsedSeconds)) }
         updateResults()

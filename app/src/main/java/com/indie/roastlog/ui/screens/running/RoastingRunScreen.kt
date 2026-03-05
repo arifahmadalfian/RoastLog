@@ -6,8 +6,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Air
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.TrendingDown
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,6 +21,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -130,52 +134,7 @@ fun RoastingRunScreen(
                         PlanSummarySection(title = "Air Flow Plan", events = uiState.setupData.airFlowPlan)
                         PlanSummarySection(title = "RPM Drum Plan", events = uiState.setupData.rpmPlan)
                     }
-
-
                 }
-            }
-
-            TimerSection(
-                elapsedSeconds = uiState.elapsedSeconds,
-                isRunning = uiState.isTimerRunning,
-                onStartClick = { viewModel.startTimer() },
-                onStopClick = { viewModel.stopTimer() },
-                onResetClick = { viewModel.resetTimer() }
-            )
-
-            // Manual Mark Event Buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = { 
-                        val lastTemp = uiState.intervalDataList.lastOrNull()?.temperature ?: 0f
-                        viewModel.markYellowing(lastTemp)
-                    },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEB3B), contentColor = Color.Black)
-                ) { Text("Yellowing") }
-                
-                Button(
-                    onClick = { 
-                        val lastTemp = uiState.intervalDataList.lastOrNull()?.temperature ?: 0f
-                        viewModel.markFirstCrack(lastTemp)
-                    },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800))
-                ) { Text("1st Crack") }
-                
-                Button(
-                    onClick = { 
-                        val lastTemp = uiState.intervalDataList.lastOrNull()?.temperature ?: 0f
-                        viewModel.markEndRoast(lastTemp)
-                        viewModel.saveToDatabase(context)
-                        onFinish() 
-                    },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
-                ) { Text("Finish") }
             }
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -210,6 +169,86 @@ fun RoastingRunScreen(
                     enabled = false,
                     modifier = Modifier.weight(1f)
                 )
+            }
+
+            TimerSection(
+                elapsedSeconds = uiState.elapsedSeconds,
+                isRunning = uiState.isTimerRunning,
+                onStartClick = { viewModel.startTimer() },
+                onStopClick = { viewModel.stopTimer() },
+                onResetClick = { viewModel.resetTimer() }
+            )
+
+            // Manual Mark Event Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // Turn Point
+                Button(
+                    onClick = { 
+                        val lastTemp = uiState.intervalDataList.lastOrNull()?.temperature ?: 0f
+                        viewModel.markTurnPoint(lastTemp)
+                    },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 4.dp)) {
+                        Icon(Icons.Default.TrendingDown, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Text("Turn P", style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center, maxLines = 1)
+                    }
+                }
+
+                // Yellowing
+                Button(
+                    onClick = { 
+                        val lastTemp = uiState.intervalDataList.lastOrNull()?.temperature ?: 0f
+                        viewModel.markYellowing(lastTemp)
+                    },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEB3B), contentColor = Color.Black)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 4.dp)) {
+                        Icon(Icons.Default.WbSunny, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Text("Yellow", style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center, maxLines = 1)
+                    }
+                }
+                
+                // 1st Crack
+                Button(
+                    onClick = { 
+                        val lastTemp = uiState.intervalDataList.lastOrNull()?.temperature ?: 0f
+                        viewModel.markFirstCrack(lastTemp)
+                    },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800))
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 4.dp)) {
+                        Icon(Icons.Default.Whatshot, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Text("1st Crack", style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center, maxLines = 1)
+                    }
+                }
+                
+                // Finish
+                Button(
+                    onClick = { 
+                        val lastTemp = uiState.intervalDataList.lastOrNull()?.temperature ?: 0f
+                        viewModel.markEndRoast(lastTemp)
+                        viewModel.saveToDatabase(context)
+                        onFinish() 
+                    },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 4.dp)) {
+                        Icon(Icons.Default.Flag, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Text("Finish", style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center, maxLines = 1)
+                    }
+                }
             }
 
             val chartData = viewModel.getChartData()
