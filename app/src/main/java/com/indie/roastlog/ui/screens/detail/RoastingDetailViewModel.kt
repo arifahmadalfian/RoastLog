@@ -22,4 +22,12 @@ class RoastingDetailViewModel(application: Application) : AndroidViewModel(appli
             _session.value = entity
         }
     }
+
+    fun deleteSession(onSuccess: () -> Unit) {
+        val currentSession = _session.value ?: return
+        viewModelScope.launch {
+            dao.deleteSession(currentSession)
+            onSuccess()
+        }
+    }
 }

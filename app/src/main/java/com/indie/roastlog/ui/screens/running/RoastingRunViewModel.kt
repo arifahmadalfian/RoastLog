@@ -36,7 +36,7 @@ data class RoastingRunState(
     val actualEndRoast: RoastingEvent? = null,
     
     // Running State
-    val elapsedSeconds: Int = 0,
+    val elapsedMillis: Long = 0L,
     val isTimerRunning: Boolean = false,
     val intervalDataList: List<IntervalData> = emptyList(),
     val showTemperatureDialog: Boolean = false,
@@ -93,22 +93,22 @@ class RoastingRunViewModel : ViewModel() {
     }
 
     fun markTurnPoint(temp: Float) {
-        _uiState.update { it.copy(actualTurnPoint = RoastingEvent(temp, it.elapsedSeconds)) }
+        _uiState.update { it.copy(actualTurnPoint = RoastingEvent(temp, (it.elapsedMillis / 1000).toInt())) }
         updateResults()
     }
 
     fun markYellowing(temp: Float) {
-        _uiState.update { it.copy(actualYellowing = RoastingEvent(temp, it.elapsedSeconds)) }
+        _uiState.update { it.copy(actualYellowing = RoastingEvent(temp, (it.elapsedMillis / 1000).toInt())) }
         updateResults()
     }
 
     fun markFirstCrack(temp: Float) {
-        _uiState.update { it.copy(actualFirstCrack = RoastingEvent(temp, it.elapsedSeconds)) }
+        _uiState.update { it.copy(actualFirstCrack = RoastingEvent(temp, (it.elapsedMillis / 1000).toInt())) }
         updateResults()
     }
 
     fun markEndRoast(temp: Float) {
-        _uiState.update { it.copy(actualEndRoast = RoastingEvent(temp, it.elapsedSeconds)) }
+        _uiState.update { it.copy(actualEndRoast = RoastingEvent(temp, (it.elapsedMillis / 1000).toInt())) }
         updateResults()
         stopTimer()
     }
@@ -127,7 +127,7 @@ class RoastingRunViewModel : ViewModel() {
         _uiState.update { it.copy(isTimerRunning = true) }
         lastInterval = 0
 
-        val totalSeconds = duration * 60
+        val totalMillis = duration.toLong() * 60 * 1000
 
         _uiState.update { currentState ->
             val newData = currentState.intervalDataList + IntervalData(
@@ -138,18 +138,19 @@ class RoastingRunViewModel : ViewModel() {
         }
 
         timerJob = viewModelScope.launch {
+            val startTime = System.currentTimeMillis() - _uiState.value.elapsedMillis
             while (true) {
-                delay(1000)
+                val currentMillis = System.currentTimeMillis() - startTime
                 _uiState.update { currentState ->
-                    val newSeconds = currentState.elapsedSeconds + 1
-                    val currentIntervalCount = newSeconds / interval
+                    val currentSeconds = (currentMillis / 1000).toInt()
+                    val currentIntervalCount = currentSeconds / interval
                     
                     if (currentIntervalCount > lastInterval) {
                         lastInterval = currentIntervalCount
                         onIntervalPassed(currentIntervalCount)
                     }
 
-                    val burnerEventIndex = currentState.setupData.burnerPlan.indexOfFirst { it.seconds == newSeconds }
+                    val burnerEventIndex = currentState.setupData.burnerPlan.indexOfFirst { it.seconds == currentSeconds }
                     var pendingBIndex = currentState.pendingBurnerIndex
                     if (burnerEventIndex != -1) {
                         if (!currentState.showTemperatureDialog && !currentState.showRorDialog) {
@@ -159,13 +160,14 @@ class RoastingRunViewModel : ViewModel() {
                         }
                     }
 
-                    if (newSeconds >= totalSeconds && !currentState.showTemperatureDialog) {
+                    if (currentMillis >= totalMillis && !currentState.showTemperatureDialog) {
                         stopTimer()
-                        return@update currentState.copy(elapsedSeconds = totalSeconds, isTimerRunning = false)
+                        return@update currentState.copy(elapsedMillis = totalMillis, isTimerRunning = false)
                     }
 
-                    currentState.copy(elapsedSeconds = newSeconds, pendingBurnerIndex = pendingBIndex)
+                    currentState.copy(elapsedMillis = currentMillis, pendingBurnerIndex = pendingBIndex)
                 }
+                delay(10) // Update every 10ms for smooth millisecond display
             }
         }
     }
@@ -179,7 +181,7 @@ class RoastingRunViewModel : ViewModel() {
     fun resetTimer() {
         stopTimer()
         lastInterval = 0
-        _uiState.update { it.copy(elapsedSeconds = 0, intervalDataList = emptyList(), pendingBurnerIndex = -1, currentBurnerIndex = 0) }
+        _uiState.update { it.copy(elapsedMillis = 0L, intervalDataList = emptyList(), pendingBurnerIndex = -1, currentBurnerIndex = 0) }
     }
 
     private fun onIntervalPassed(interval: Int) {
@@ -308,6 +310,8 @@ class RoastingRunViewModel : ViewModel() {
             weightIn = setup.weightIn,
             weightOut = state.weightOut,
             roastType = setup.roastType,
+            intervalSeconds = setup.intervalSeconds.toIntOrNull() ?: 60,
+            targetDuration = setup.targetDuration.toIntOrNull() ?: 0,
             endTimeTemp = state.endTimeTemp,
             roastTime = state.roastTime,
             devTime = state.devTime,

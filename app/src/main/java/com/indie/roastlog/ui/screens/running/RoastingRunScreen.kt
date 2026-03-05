@@ -6,14 +6,13 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.filled.Air
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.*
@@ -25,12 +24,12 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.indie.roastlog.pdf.PdfExportManager
@@ -189,7 +188,7 @@ fun RoastingRunScreen(
             }
 
             TimerSection(
-                elapsedSeconds = uiState.elapsedSeconds,
+                elapsedMillis = uiState.elapsedMillis,
                 isRunning = uiState.isTimerRunning,
                 onStartClick = { viewModel.startTimer() },
                 onStopClick = { viewModel.stopTimer() },
@@ -206,7 +205,7 @@ fun RoastingRunScreen(
                     onClick = {
                         eventMarkDialogData = EventMarkDialogData(
                             title = "Turn P",
-                            icon = Icons.Default.TrendingDown,
+                            icon = Icons.AutoMirrored.Filled.TrendingDown,
                             iconColor = Color(0xFF2196F3),
                             onConfirm = { 
                                 viewModel.markTurnPoint(it)
@@ -220,7 +219,7 @@ fun RoastingRunScreen(
                     enabled = uiState.isTimerRunning
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 4.dp)) {
-                        Icon(Icons.Default.TrendingDown, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Icon(Icons.AutoMirrored.Filled.TrendingDown, contentDescription = null, modifier = Modifier.size(20.dp))
                         Text("Turn P", style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center, maxLines = 1)
                     }
                 }
@@ -337,6 +336,9 @@ fun RoastingRunScreen(
                 }
             }
 
+            // Save Button logic: Enabled if End Roast event is marked AND Weight Out is not empty
+            val isReadyToSave = uiState.actualEndRoast != null && uiState.weightOut.isNotEmpty()
+
             // Save Button
             Button(
                 onClick = {
@@ -348,7 +350,7 @@ fun RoastingRunScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                enabled = uiState.intervalDataList.isNotEmpty()
+                enabled = isReadyToSave
             ) {
                 Icon(Icons.Default.Save, null)
                 Spacer(Modifier.width(8.dp))
@@ -359,6 +361,7 @@ fun RoastingRunScreen(
         // Event Mark Dialog (Turn P, Yellow, 1st Crack, Finish)
         eventMarkDialogData?.let { data ->
             val focusRequester = remember { FocusRequester() }
+            val keyboardController = LocalSoftwareKeyboardController.current
             var input by remember { mutableStateOf("") }
             
             AlertDialog(
@@ -388,7 +391,9 @@ fun RoastingRunScreen(
                                 .focusRequester(focusRequester)
                         )
                         LaunchedEffect(Unit) {
+                            delay(300) // Memberikan waktu dialog muncul sepenuhnya
                             focusRequester.requestFocus()
+                            keyboardController?.show()
                         }
                     }
                 },
@@ -498,7 +503,7 @@ fun RoastingRunScreen(
         if (uiState.showTemperatureDialog) {
             TemperatureInputDialog(
                 intervalNumber = uiState.currentInterval,
-                elapsedTime = formatRunTime(uiState.elapsedSeconds),
+                elapsedTime = formatRunTime(uiState.elapsedMillis),
                 voiceState = voiceState,
                 onVoiceClick = { voiceRecognizer.startListening(context) },
                 onDismiss = { 
@@ -526,7 +531,7 @@ fun RoastingRunScreen(
                 text = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = if (ror != null) String.format(Locale.getDefault(), "%.1f°C", ror) else "-",
+                            text = if (ror != null) "${ror.toInt()}°C" else "-",
                             style = MaterialTheme.typography.displayMedium,
                             fontWeight = FontWeight.Bold,
                             color = if (ror != null && ror > 0) MaterialTheme.colorScheme.primary else Color.Gray
@@ -551,7 +556,7 @@ fun RoastingRunScreen(
         }
 
         // Check for Air Flow and RPM events based on elapsed time
-        val currentAirFlowEvent = uiState.setupData.airFlowPlan.find { it.seconds == uiState.elapsedSeconds }
+        val currentAirFlowEvent = uiState.setupData.airFlowPlan.find { it.seconds == (uiState.elapsedMillis / 1000).toInt() }
         if (currentAirFlowEvent != null) {
             AutoCloseAlertDialog(
                 icon = Icons.Default.Air,
@@ -563,7 +568,7 @@ fun RoastingRunScreen(
             )
         }
 
-        val currentRpmEvent = uiState.setupData.rpmPlan.find { it.seconds == uiState.elapsedSeconds }
+        val currentRpmEvent = uiState.setupData.rpmPlan.find { it.seconds == (uiState.elapsedMillis / 1000).toInt() }
         if (currentRpmEvent != null) {
             AutoCloseAlertDialog(
                 icon = Icons.Default.Sync,
@@ -646,7 +651,7 @@ fun InfoItem(label: String, value: String, modifier: Modifier = Modifier) {
 
 @Composable
 fun TimerSection(
-    elapsedSeconds: Int,
+    elapsedMillis: Long,
     isRunning: Boolean,
     onStartClick: () -> Unit,
     onStopClick: () -> Unit,
@@ -661,7 +666,7 @@ fun TimerSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = formatRunTime(elapsedSeconds),
+                text = formatRunTime(elapsedMillis),
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold
             )
@@ -675,18 +680,21 @@ fun TimerSection(
                     Text("Start")
                 }
             }
-            Spacer(Modifier.width(8.dp))
-            OutlinedButton(onClick = onResetClick) {
-                Text("Reset")
-            }
+//            Spacer(Modifier.width(8.dp))
+//            OutlinedButton(onClick = onResetClick) {
+//                Text("Reset")
+//            }
         }
     }
 }
 
-private fun formatRunTime(totalSeconds: Int): String {
+private fun formatRunTime(totalMillis: Long): String {
+    val totalSeconds = totalMillis / 1000
     val m = totalSeconds / 60
     val s = totalSeconds % 60
-    return String.format(Locale.getDefault(), "%02d:%02d", m, s)
+    val ds = (totalMillis % 1000) / 100
+    
+    return String.format(Locale.getDefault(), "%02d:%02d.%d", m, s, ds)
 }
 
 @Composable
@@ -700,10 +708,7 @@ fun TemperatureInputDialog(
 ) {
     var input by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
-
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-    }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(voiceState) {
         if (voiceState is VoiceRecognitionState.Success) {
@@ -745,6 +750,13 @@ fun TemperatureInputDialog(
                         .fillMaxWidth()
                         .focusRequester(focusRequester)
                 )
+                
+                LaunchedEffect(Unit) {
+                    delay(300) // Pastikan dialog sudah muncul sepenuhnya
+                    focusRequester.requestFocus()
+                    keyboardController?.show()
+                }
+
                 if (voiceState is VoiceRecognitionState.Listening) {
                     Text("Mendengarkan...", color = MaterialTheme.colorScheme.primary)
                 }

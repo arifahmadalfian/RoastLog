@@ -90,7 +90,10 @@ fun RoastLogApp() {
         }
         
         entry<DetailRoute> { key ->
-            RoastingDetail(roastId = key.id)
+            RoastingDetail(
+                roastId = key.id,
+                onBack = { navigator.goBack() }
+            )
         }
     }
 

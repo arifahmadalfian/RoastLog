@@ -3,6 +3,7 @@ package com.indie.roastlog.data
 import android.content.Context
 import androidx.room.Dao
 import androidx.room.Database
+import androidx.room.Delete
 import androidx.room.Entity
 import androidx.room.Insert
 import androidx.room.PrimaryKey
@@ -26,6 +27,8 @@ data class RoastSessionEntity(
     val weightIn: String,
     val weightOut: String,
     val roastType: String,
+    val intervalSeconds: Int = 60,
+    val targetDuration: Int = 0,
     // Results
     val endTimeTemp: String,
     val roastTime: String,
@@ -64,6 +67,9 @@ interface RoastDao {
     @Insert
     suspend fun insertSession(session: RoastSessionEntity)
 
+    @Delete
+    suspend fun deleteSession(session: RoastSessionEntity)
+
     @Query("SELECT * FROM roast_sessions ORDER BY date DESC")
     fun getAllSessions(): kotlinx.coroutines.flow.Flow<List<RoastSessionEntity>>
 
@@ -71,7 +77,7 @@ interface RoastDao {
     suspend fun getSessionById(id: Long): RoastSessionEntity?
 }
 
-@Database(entities = [RoastSessionEntity::class], version = 1)
+@Database(entities = [RoastSessionEntity::class], version = 3, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class RoastDatabase : RoomDatabase() {
     abstract fun roastDao(): RoastDao
@@ -80,7 +86,9 @@ abstract class RoastDatabase : RoomDatabase() {
         @Volatile private var instance: RoastDatabase? = null
         fun getDatabase(context: Context): RoastDatabase =
             instance ?: synchronized(this) {
-                instance ?: Room.databaseBuilder(context, RoastDatabase::class.java, "roast_db").build().also { instance = it }
+                instance ?: Room.databaseBuilder(context, RoastDatabase::class.java, "roast_db")
+                    .fallbackToDestructiveMigration()
+                    .build().also { instance = it }
             }
     }
 }

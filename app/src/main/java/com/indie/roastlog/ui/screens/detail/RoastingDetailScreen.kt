@@ -3,6 +3,8 @@ package com.indie.roastlog.ui.screens.detail
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,10 +23,12 @@ import java.util.*
 @Composable
 fun RoastingDetail(
     roastId: String?,
+    onBack: () -> Unit,
     viewModel: RoastingDetailViewModel = viewModel()
 ) {
     val session by viewModel.session.collectAsState()
     val dateFormat = SimpleDateFormat("dd MMMM yyyy, HH:mm", Locale.getDefault())
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(roastId) {
         roastId?.let { viewModel.loadSession(it) }
@@ -38,7 +42,8 @@ fun RoastingDetail(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Card(modifier = Modifier.fillMaxWidth()) {
@@ -67,28 +72,51 @@ fun RoastingDetail(
                     }
                 }
 
-                // Chart
+                // Chart - Logic synchronized with RoastingRunViewModel
                 val chartData = remember(s) {
-                    val points = s.temperatureData.map { 
-                        ChartDataPoint(it.intervalNumber.toFloat(), it.intervalNumber * 60, it.temperature, null)
+                    val interval = s.intervalSeconds
+                    val dataMap = s.temperatureData.associateBy { it.intervalNumber }
+                    
+                    // Filter out duplicate or inconsistent intervals if any, and ensure sorted
+                    val maxIntervalNum = s.temperatureData.maxOfOrNull { it.intervalNumber } ?: 0
+                    
+                    val points = (0..maxIntervalNum).map { intervalNum ->
+                        val secondsAtThisInterval = intervalNum * interval
+                        val intervalData = dataMap[intervalNum]
+                        val currentTemp = intervalData?.temperature
+                        val prevTemp = if (intervalNum > 0) dataMap[intervalNum - 1]?.temperature else null
+                        val rorValue = if (intervalNum > 0 && currentTemp != null && prevTemp != null) currentTemp - prevTemp else null
+                        
+                        // Find burner power for this specific time
+                        val burnerPower = s.burnerPlan.find { it.seconds == secondsAtThisInterval }?.temperature?.toInt()?.toString() ?: ""
+
+                        ChartDataPoint(
+                            intervalNumber = intervalNum.toFloat(),
+                            totalSeconds = secondsAtThisInterval,
+                            temperature = currentTemp,
+                            ror = rorValue,
+                            burnerPower = burnerPower
+                        )
                     }.toMutableList()
                     
                     listOfNotNull(s.turnPoint, s.yellowing, s.firstCrack, s.endRoast).forEach { ev ->
-                        points.add(ChartDataPoint(ev.seconds.toFloat() / 60f, ev.seconds, ev.temperature, null))
+                        points.add(ChartDataPoint(
+                            intervalNumber = ev.seconds.toFloat() / interval,
+                            totalSeconds = ev.seconds,
+                            temperature = ev.temperature,
+                            ror = null
+                        ))
                     }
-                    points.sortedBy { it.totalSeconds }
+                    points.distinctBy { it.totalSeconds }.sortedBy { it.totalSeconds }
                 }
 
                 if (chartData.isNotEmpty()) {
                     Box(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(text = "Grafik Suhu", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
-                            RoastingChart(
-                                data = chartData,
-                                intervalSeconds = 60, // Default to 60
-                                modifier = Modifier.fillMaxWidth().height(250.dp)
-                            )
-                        }
+                        RoastingChart(
+                            data = chartData,
+                            intervalSeconds = s.intervalSeconds,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
 
@@ -102,10 +130,46 @@ fun RoastingDetail(
                         EventRow(label = "End Roast", event = s.endRoast)
                     }
                 }
+
+                Button(
+                    onClick = { showDeleteDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Hapus Data Roasting")
+                }
             }
         } ?: Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Hapus Data") },
+            text = { Text("Apakah anda yakin ingin menghapus data roasting ini?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteSession {
+                            showDeleteDialog = false
+                            onBack()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Hapus")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Batal")
+                }
+            }
+        )
     }
 }
 
