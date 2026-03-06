@@ -739,7 +739,7 @@ fun TemperatureInputDialog(
                 enabled = input.isNotEmpty()
             ) { Text("Submit") }
         },
-        dismissButton = if (!isEventMarkMode) {
+        dismissButton = if (isEventMarkMode) {
             { TextButton(onClick = onDismiss) { Text("Batal") } }
         } else null
     )
@@ -761,7 +761,7 @@ fun EventMarkButton(
         modifier = modifier,
         contentPadding = PaddingValues(horizontal = 4.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor.copy(alpha = if (enabled) 0.5f else 0.1f),
+            containerColor = containerColor.copy(alpha = if (enabled) 0.3f else 0.1f),
             contentColor = if (contentColor != Color.Unspecified) contentColor else LocalContentColor.current
         ),
         enabled = enabled

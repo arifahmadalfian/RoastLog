@@ -88,7 +88,7 @@ fun RoastingChart(
             Column(
                 modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
             ) {
-                // ROR Row - Tampilkan hanya di interval bulat jika diinginkan, atau semua titik
+                // ROR Row
                 Text(
                     text = "ROR (kenaikan suhu bean per menit)",
                     fontSize = 10.sp,
@@ -105,9 +105,8 @@ fun RoastingChart(
                             color = MaterialTheme.colorScheme.background
                         )
                     )
-                    data.forEachIndexed { index, point ->
+                    data.forEach { point ->
                         val rorText = when {
-                            index == 0 -> "0"
                             point.ror == null -> "-"
                             else -> point.ror.toString()
                         }

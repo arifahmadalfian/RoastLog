@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 data class RoastingRunState(
     // Setup Data from Form
@@ -97,19 +98,30 @@ class RoastingRunViewModel : ViewModel() {
         val state = _uiState.value
         val intervalSec = state.setupData.intervalSeconds.toIntOrNull() ?: 60
         
-        val points = mutableListOf<Pair<Int, Int>>()
+        // Build list of all data points with their exact timestamps
+        val points = mutableListOf(
+            0 to state.setupData.chargeTimeTemp.toInt()
+        ) // (seconds, temperature)
+        
+        // Add interval data points
         state.intervalDataList.forEach { 
             points.add(it.intervalNumber * intervalSec to it.temperature) 
         }
+        
+        // Add event mark points (Turn Point, Yellowing, First Crack, End Roast)
+        listOfNotNull(state.actualTurnPoint, state.actualYellowing, state.actualFirstCrack, state.actualEndRoast)
+            .forEach { points.add(it.seconds to it.temperature) }
+        
+        // Sort by time and remove duplicates (keep highest temp if same time)
+        val uniquePoints = points.sortedBy { it.first }
+            .groupBy { it.first }
+            .map { (_, temps) -> temps.maxByOrNull { it.second } ?: temps.first() }
             
-        val prevPoint = points.filter { it.first < seconds }.maxByOrNull { it.first }
+        // Find the most recent point BEFORE current time
+        val prevPoint = uniquePoints.lastOrNull { it.first < seconds }
         
         return if (prevPoint != null) {
-            val tempDiff = temp - prevPoint.second
-            val timeDiffSeconds = seconds - prevPoint.first
-            if (timeDiffSeconds > 0) {
-                (tempDiff / timeDiffSeconds) * intervalSec
-            } else null
+            (temp - prevPoint.second)
         } else null
     }
 
@@ -317,7 +329,7 @@ class RoastingRunViewModel : ViewModel() {
             val currentTemp = intervalData?.temperature
             val prevTemp = if (intervalNum > 0) dataMap[intervalNum - 1]?.temperature else null
             val rorValue = if (intervalNum > 0 && currentTemp != null && prevTemp != null) currentTemp - prevTemp else null
-            
+
             ChartDataPoint(
                 intervalNumber = intervalNum.toFloat(), // Even spacing for regular intervals
                 totalSeconds = secondsAtThisInterval,
@@ -326,7 +338,7 @@ class RoastingRunViewModel : ViewModel() {
             )
         }.toMutableList()
 
-        // Add event marks at their exact positions (may be between intervals)
+        // Add event marks at their exact positions ( between intervals)
         val runningState = _uiState.value
         listOfNotNull(runningState.actualTurnPoint, runningState.actualYellowing, runningState.actualFirstCrack, runningState.actualEndRoast).forEach { ev ->
             val eventIntervalNum = ev.seconds.toFloat() / interval
