@@ -1,10 +1,10 @@
 package com.indie.roastlog.ui.components
 
 import android.graphics.Color
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,8 +14,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -78,138 +79,138 @@ fun RoastingChart(
             )
         }
 
-        // ROR labels row
+        // ROR, Air Flow, RPM, Burner labels row - aligned with chart
         Box(
             modifier = Modifier
                 .horizontalScroll(scrollState)
                 .fillMaxWidth()
         ) {
-            val totalWidth = maxOf(300, data.size * 30)
+            val columnWidth = 30f // Same as chart's column width
+            val textColor = ComposeColor(MaterialTheme.colorScheme.onSurface.hashCode())
+
             Column(
                 modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
             ) {
-                // ROR Row
+                // ROR Row Label
                 Text(
                     text = "ROR (kenaikan suhu bean per menit)",
                     fontSize = 10.sp,
                     modifier = Modifier.padding(start = 4.dp)
                 )
-                Row(
-                    modifier = Modifier.width(totalWidth.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // ROR Row Canvas
+                Canvas(
+                    modifier = Modifier
+                        .width(maxOf(300, data.size * 30).dp)
+                        .height(20.dp)
                 ) {
-                    Text(
-                        text = "24",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.background
-                        )
-                    )
+                    val paint = android.graphics.Paint().apply {
+                        color = textColor.hashCode()
+                        textSize = 10.sp.toPx()
+                        textAlign = android.graphics.Paint.Align.CENTER
+                    }
+                    
                     data.forEach { point ->
+                        val x = (point.intervalNumber * columnWidth) + (columnWidth / 2)
                         val rorText = when {
                             point.ror == null -> "-"
                             else -> point.ror.toString()
                         }
-
-                        Box(
-                            modifier = Modifier.weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = rorText,
-                                fontSize = 10.sp
-                            )
-                        }
+                        drawContext.canvas.nativeCanvas.drawText(
+                            rorText,
+                            x,
+                            14f, // baseline y position
+                            paint
+                        )
                     }
                 }
 
-                // Air Flow Power Row
+                // Air Flow Power Row Label
                 Text(
                     text = "Air Flow Power (besaran buangan asap)",
                     fontSize = 10.sp,
                     modifier = Modifier.padding(start = 4.dp, top = 8.dp)
                 )
-                Row(
-                    modifier = Modifier.width(totalWidth.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // Air Flow Power Row Canvas
+                Canvas(
+                    modifier = Modifier
+                        .width(maxOf(300, data.size * 30).dp)
+                        .height(20.dp)
                 ) {
-                    Text(
-                        text = "24",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.background
-                        )
-                    )
+                    val paint = android.graphics.Paint().apply {
+                        color = textColor.hashCode()
+                        textSize = 10.sp.toPx()
+                        textAlign = android.graphics.Paint.Align.CENTER
+                    }
+                    
                     data.forEach { point ->
-                        Box(
-                            modifier = Modifier.weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = point.airFlowPower.ifEmpty { "-" },
-                                fontSize = 10.sp
-                            )
-                        }
+                        val x = (point.intervalNumber * columnWidth) + (columnWidth / 2)
+                        val airFlowText = point.airFlowPower.ifEmpty { "-" }
+                        drawContext.canvas.nativeCanvas.drawText(
+                            airFlowText,
+                            x,
+                            14f,
+                            paint
+                        )
                     }
                 }
 
-                // RPM Drum Row
+                // RPM Drum Row Label
                 Text(
                     text = "RPM Drum (kecepatan putaran drum)",
                     fontSize = 10.sp,
                     modifier = Modifier.padding(start = 4.dp, top = 8.dp)
                 )
-                Row(
-                    modifier = Modifier.width(totalWidth.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // RPM Drum Row Canvas
+                Canvas(
+                    modifier = Modifier
+                        .width(maxOf(300, data.size * 30).dp)
+                        .height(20.dp)
                 ) {
-                    Text(
-                        text = "24",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.background
-                        )
-                    )
+                    val paint = android.graphics.Paint().apply {
+                        color = textColor.hashCode()
+                        textSize = 10.sp.toPx()
+                        textAlign = android.graphics.Paint.Align.CENTER
+                    }
+                    
                     data.forEach { point ->
-                        Box(
-                            modifier = Modifier.weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = point.rpmDrum.ifEmpty { "-" },
-                                fontSize = 10.sp
-                            )
-                        }
+                        val x = (point.intervalNumber * columnWidth) + (columnWidth / 2)
+                        val rpmText = point.rpmDrum.ifEmpty { "-" }
+                        drawContext.canvas.nativeCanvas.drawText(
+                            rpmText,
+                            x,
+                            14f,
+                            paint
+                        )
                     }
                 }
 
-                // Burner Power Row
+                // Burner Power Row Label
                 Text(
                     text = "Burner Power (besaran tekanan api)",
                     fontSize = 10.sp,
                     modifier = Modifier.padding(start = 4.dp, top = 8.dp)
                 )
-                Row(
-                    modifier = Modifier.width(totalWidth.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                // Burner Power Row Canvas
+                Canvas(
+                    modifier = Modifier
+                        .width(maxOf(300, data.size * 30).dp)
+                        .height(20.dp)
                 ) {
-                    Text(
-                        text = "24",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.background
-                        )
-                    )
+                    val paint = android.graphics.Paint().apply {
+                        color = textColor.hashCode()
+                        textSize = 10.sp.toPx()
+                        textAlign = android.graphics.Paint.Align.CENTER
+                    }
+                    
                     data.forEach { point ->
-                        Box(
-                            modifier = Modifier.weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = point.burnerPower.ifEmpty { "-" },
-                                fontSize = 10.sp
-                            )
-                        }
+                        val x = (point.intervalNumber * columnWidth) + (columnWidth / 2)
+                        val burnerText = point.burnerPower.ifEmpty { "-" }
+                        drawContext.canvas.nativeCanvas.drawText(
+                            burnerText,
+                            x,
+                            14f,
+                            paint
+                        )
                     }
                 }
             }

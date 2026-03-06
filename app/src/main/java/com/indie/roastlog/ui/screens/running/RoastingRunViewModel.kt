@@ -17,8 +17,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Date
-import java.util.Locale
-import kotlin.math.roundToInt
 
 data class RoastingRunState(
     // Setup Data from Form
@@ -330,11 +328,19 @@ class RoastingRunViewModel : ViewModel() {
             val prevTemp = if (intervalNum > 0) dataMap[intervalNum - 1]?.temperature else null
             val rorValue = if (intervalNum > 0 && currentTemp != null && prevTemp != null) currentTemp - prevTemp else null
 
+            // Find matching plan events by exact seconds
+            val airFlowEvent = state.airFlowPlan.find { it.seconds == secondsAtThisInterval }
+            val rpmEvent = state.rpmPlan.find { it.seconds == secondsAtThisInterval }
+            val burnerEvent = state.burnerPlan.find { it.seconds == secondsAtThisInterval }
+
             ChartDataPoint(
                 intervalNumber = intervalNum.toFloat(), // Even spacing for regular intervals
                 totalSeconds = secondsAtThisInterval,
                 temperature = currentTemp,
-                ror = rorValue
+                ror = rorValue,
+                airFlowPower = airFlowEvent?.temperature?.toString() ?: "",
+                rpmDrum = rpmEvent?.temperature?.toString() ?: "",
+                burnerPower = burnerEvent?.temperature?.toString() ?: ""
             )
         }.toMutableList()
 
@@ -342,11 +348,20 @@ class RoastingRunViewModel : ViewModel() {
         val runningState = _uiState.value
         listOfNotNull(runningState.actualTurnPoint, runningState.actualYellowing, runningState.actualFirstCrack, runningState.actualEndRoast).forEach { ev ->
             val eventIntervalNum = ev.seconds.toFloat() / interval
+            
+            // Find matching plan events by exact seconds for event marks
+            val airFlowEvent = state.airFlowPlan.find { it.seconds == ev.seconds }
+            val rpmEvent = state.rpmPlan.find { it.seconds == ev.seconds }
+            val burnerEvent = state.burnerPlan.find { it.seconds == ev.seconds }
+            
             points.add(ChartDataPoint(
                 intervalNumber = eventIntervalNum, // Exact position for events
                 totalSeconds = ev.seconds,
                 temperature = ev.temperature,
-                ror = null
+                ror = null,
+                airFlowPower = airFlowEvent?.temperature?.toString() ?: "",
+                rpmDrum = rpmEvent?.temperature?.toString() ?: "",
+                burnerPower = burnerEvent?.temperature?.toString() ?: ""
             ))
         }
 
