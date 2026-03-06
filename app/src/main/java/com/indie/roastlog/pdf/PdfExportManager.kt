@@ -253,9 +253,22 @@ class PdfExportManager(private val context: Context) {
         yPosition += 15f
 
         val chartBitmap = createChartBitmap(data)
-        val chartHeight = 240 
-        chartCanvas.drawBitmap(chartBitmap, 50f, yPosition, null)
-        yPosition += chartHeight + 20f
+        val chartHeight = 240
+        val availableWidth = 495f // Page width (595) - margins (100)
+        
+        // Scale chart if it exceeds available width
+        val chartScale = if (chartBitmap.width > availableWidth) {
+            availableWidth / chartBitmap.width
+        } else 1f
+        
+        val destRect = android.graphics.RectF(
+            50f, 
+            yPosition, 
+            50f + chartBitmap.width * chartScale,
+            yPosition + chartHeight * chartScale
+        )
+        chartCanvas.drawBitmap(chartBitmap, null, destRect, null)
+        yPosition += chartHeight * chartScale + 20f
 
         // ROR Chart
         if (yPosition > 500f) {
@@ -269,8 +282,20 @@ class PdfExportManager(private val context: Context) {
 
         val rorBitmap = createRorChartBitmap(data)
         val rorChartHeight = 120
-        rorCanvas.drawBitmap(rorBitmap, 50f, yPosition, null)
-        yPosition += rorChartHeight + 20f
+        
+        // Scale ROR chart if it exceeds available width
+        val rorScale = if (rorBitmap.width > availableWidth) {
+            availableWidth / rorBitmap.width
+        } else 1f
+        
+        val rorDestRect = android.graphics.RectF(
+            50f,
+            yPosition,
+            50f + rorBitmap.width * rorScale,
+            yPosition + rorChartHeight * rorScale
+        )
+        rorCanvas.drawBitmap(rorBitmap, null, rorDestRect, null)
+        yPosition += rorChartHeight * rorScale + 20f
 
         // Finish the last page
         currentPage?.let { pdfDocument.finishPage(it) }
@@ -323,12 +348,13 @@ class PdfExportManager(private val context: Context) {
     }
 
     private fun createChartBitmap(data: RoastSessionData): Bitmap {
-        val chartWidth = 480
-        val chartHeight = 240 
-
         val totalSeconds = data.targetDuration * 60
         val maxIntervals = if (data.intervalSeconds > 0) totalSeconds / data.intervalSeconds else 0
         val maxX = maxIntervals.toFloat()
+        
+        // Dynamic width based on data size (30dp per data point, minimum 480)
+        val chartWidth = maxOf(480, maxIntervals * 25)
+        val chartHeight = 240
 
         val chart = LineChart(context).apply {
             layoutParams = ViewGroup.LayoutParams(chartWidth, chartHeight)
@@ -345,9 +371,9 @@ class PdfExportManager(private val context: Context) {
                 axisMinimum = 70f
                 axisMaximum = 240f
                 textColor = Color.BLACK
-                textSize = 8f
-                labelCount = 18
-                setLabelCount(18, true)
+                textSize = 3f
+                labelCount = 8
+                setLabelCount(8, true)
                 setDrawLabels(true)
             }
 
@@ -358,11 +384,11 @@ class PdfExportManager(private val context: Context) {
                 setDrawGridLines(true)
                 granularity = 0.1f
                 textColor = Color.BLACK
-                textSize = 7f 
+                textSize = 3f
                 axisMinimum = 0f
                 axisMaximum = maxX
-                val step = maxOf(1, maxIntervals / 8)
-                setLabelCount((maxIntervals / step) + 1, true)
+                // Show all labels for every interval
+                setLabelCount(maxIntervals + 1, true)
                 labelRotationAngle = -45f
                 valueFormatter = object : ValueFormatter() {
                     override fun getFormattedValue(value: Float): String {
@@ -402,12 +428,13 @@ class PdfExportManager(private val context: Context) {
     }
 
     private fun createRorChartBitmap(data: RoastSessionData): Bitmap {
-        val chartWidth = 480
-        val chartHeight = 120
-
         val totalSeconds = data.targetDuration * 60
         val maxIntervals = if (data.intervalSeconds > 0) totalSeconds / data.intervalSeconds else 0
         val maxX = maxIntervals.toFloat()
+        
+        // Dynamic width based on data size (25dp per data point, minimum 480)
+        val chartWidth = maxOf(480, maxIntervals * 25)
+        val chartHeight = 120
 
         // Build ROR data with interpolation like in RoastingDetailScreen
         val rorData = buildRorDataForPdf(data)
@@ -426,7 +453,7 @@ class PdfExportManager(private val context: Context) {
                 setDrawGridLines(true)
                 setDrawLabels(true)
                 textColor = Color.BLACK
-                textSize = 8f
+                textSize = 3f
             }
 
             axisRight.isEnabled = false
@@ -436,11 +463,11 @@ class PdfExportManager(private val context: Context) {
                 setDrawGridLines(false)
                 granularity = 0.1f
                 textColor = Color.BLACK
-                textSize = 7f
+                textSize = 3f
                 axisMinimum = 0f
                 axisMaximum = maxX
-                val step = maxOf(1, maxIntervals / 8)
-                setLabelCount((maxIntervals / step) + 1, true)
+                // Show all labels for every interval
+                setLabelCount(maxIntervals + 1, true)
                 labelRotationAngle = -45f
                 valueFormatter = object : ValueFormatter() {
                     override fun getFormattedValue(value: Float): String {
