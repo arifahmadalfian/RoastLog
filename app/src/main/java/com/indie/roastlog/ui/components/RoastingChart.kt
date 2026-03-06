@@ -265,11 +265,11 @@ private fun LineChart.setupHorizontalChartRor() {
     xAxis.apply {
         position = XAxis.XAxisPosition.BOTTOM
         setDrawGridLines(true)
-        gridColor = Color.TRANSPARENT
+        gridColor = Color.LTGRAY
         setDrawAxisLine(true)
-        axisLineColor = Color.TRANSPARENT
+        axisLineColor = Color.BLACK
         setDrawLabels(true)
-        textColor = Color.TRANSPARENT
+        textColor = Color.BLACK
         granularity = 0.1f
         textSize = 11f
         axisMinimum = 0f
@@ -278,15 +278,13 @@ private fun LineChart.setupHorizontalChartRor() {
 
     axisLeft.apply {
         setDrawGridLines(true)
-        gridColor = Color.TRANSPARENT
+        gridColor = Color.LTGRAY
         setDrawAxisLine(true)
-        axisLineColor = Color.TRANSPARENT
+        axisLineColor = Color.BLACK
         setDrawLabels(true)
-        textColor = Color.TRANSPARENT
-        axisMinimum = 239f
-        axisMaximum = 241f
+        textColor = Color.BLACK
         textSize = 12f
-        labelCount = 1
+        labelCount = 6
     }
 
     axisRight.isEnabled = false
@@ -301,26 +299,30 @@ private fun LineChart.setRorData(data: List<ChartDataPoint>) {
     val maxX = data.maxOf { it.intervalNumber }
     xAxis.axisMaximum = maxX
 
+    // Filter out null ROR values and create entries with actual ROR values
     val entries = data.mapNotNull { point ->
-        point.ror?.let { Entry(point.intervalNumber, 240f, it.toString()) }
+        point.ror?.let { Entry(point.intervalNumber, it.toFloat()) }
+    }
+
+    // Set Y-axis range based on ROR values
+    if (entries.isNotEmpty()) {
+        val minRor = entries.minOf { it.y }
+        val maxRor = entries.maxOf { it.y }
+        val padding = (maxRor - minRor) * 0.1f // 10% padding
+        axisLeft.axisMinimum = (minRor - padding).coerceAtLeast(0f)
+        axisLeft.axisMaximum = maxRor + padding
     }
 
     val dataSet = LineDataSet(entries, "ROR").apply {
         color = "#4CAF50".toColorInt()
-        lineWidth = 0f
-        setDrawCircles(true)
+        lineWidth = 1.5f // Thin line
+        setDrawCircles(true) // Show circles at data points
         setCircleColor("#4CAF50".toColorInt())
-        circleRadius = 2f
-        setDrawCircleHole(false)
+        circleRadius = 3f
+        setDrawCircleHole(false) // Solid circles (not hollow)
         mode = LineDataSet.Mode.LINEAR
-        setDrawValues(true)
-        valueTextSize = 10f
-        valueTextColor = Color.BLACK
-        valueFormatter = object : ValueFormatter() {
-            override fun getPointLabel(entry: Entry?): String {
-                return entry?.data?.toString() ?: "-"
-            }
-        }
+        setDrawValues(false)
+        setDrawFilled(false) // No fill under the line
         setDrawHorizontalHighlightIndicator(false)
         setDrawVerticalHighlightIndicator(false)
     }

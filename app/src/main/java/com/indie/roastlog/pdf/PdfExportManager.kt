@@ -272,7 +272,7 @@ class PdfExportManager(private val context: Context) {
         yPosition += 15f
 
         val rorBitmap = createRorChartBitmap(data)
-        val rorChartHeight = 80
+        val rorChartHeight = 200
         
         // Scale ROR chart to fit width
         val rorScale = availableWidth / rorBitmap.width
@@ -448,13 +448,13 @@ class PdfExportManager(private val context: Context) {
         return bitmap
     }
 
-    // Create ROR chart using native Canvas
+    // Create ROR chart using native Canvas (line chart like temperature)
     private fun createRorChartBitmap(data: RoastSessionData): Bitmap {
         val totalSeconds = data.targetDuration * 60
         val maxIntervals = if (data.intervalSeconds > 0) totalSeconds / data.intervalSeconds else 0
         
-        val chartWidth = 1000 // Same width as temperature chart
-        val chartHeight = 80
+        val chartWidth = 800 // Same width as temperature chart
+        val chartHeight = 300 // Increased height for better visualization
         
         val bitmap = createBitmap(chartWidth, chartHeight)
         val canvas = Canvas(bitmap)
@@ -463,9 +463,9 @@ class PdfExportManager(private val context: Context) {
         canvas.drawColor(Color.WHITE)
         
         val paddingLeft = 60f
-        val paddingRight = 20f
-        val paddingTop = 10f
-        val paddingBottom = 30f
+        val paddingRight = 300f
+        val paddingTop = 20f
+        val paddingBottom = 40f
         
         val graphWidth = chartWidth - paddingLeft - paddingRight
         val graphHeight = chartHeight - paddingTop - paddingBottom
@@ -476,53 +476,100 @@ class PdfExportManager(private val context: Context) {
             strokeWidth = 1f
         }
         
+        val axisPaint = Paint().apply {
+            color = Color.BLACK
+            strokeWidth = 2f
+        }
+        
         val labelPaint = Paint().apply {
             color = Color.BLACK
             textSize = 16f
             textAlign = Paint.Align.CENTER
         }
         
-        val valuePaint = Paint().apply {
+        val yLabelPaint = Paint().apply {
             color = Color.BLACK
-            textSize = 18f
-            textAlign = Paint.Align.CENTER
-            typeface = Typeface.DEFAULT_BOLD
+            textSize = 16f
+            textAlign = Paint.Align.RIGHT
         }
         
+        val linePaint = Paint().apply {
+            color = "#4CAF50".toColorInt()
+            strokeWidth = 1.5f
+            isAntiAlias = true
+        }
+
         val pointPaint = Paint().apply {
             color = "#4CAF50".toColorInt()
             style = Paint.Style.FILL
         }
-        
+
         // Build ROR data
         val rorData = buildRorDataForPdf(data)
         
-        // Draw X-axis grid lines (every 1 minute: 0, 1, 2... 20)
+        // Calculate Y-axis range based on ROR values
+        val rorValues = rorData.mapNotNull { it.ror }
+        val yMin = if (rorValues.isNotEmpty()) (rorValues.minOrNull()?.toFloat() ?: 0f).coerceAtLeast(0f) else 0f
+        val yMax = if (rorValues.isNotEmpty()) rorValues.maxOrNull()?.toFloat() ?: 10f else 10f
+        val yRange = yMax - yMin
+        val yPadding = yRange * 0.1f // 10% padding
+        val adjustedYMin = (yMin - yPadding).coerceAtLeast(0f)
+        val adjustedYMax = yMax + yPadding
+        val adjustedYRange = adjustedYMax - adjustedYMin
+        
+        // Draw Y-axis grid lines and labels
+        val yStep = adjustedYRange / 5f
+        var yValue = adjustedYMin
+        while (yValue <= adjustedYMax) {
+            val yPos = paddingTop + graphHeight - ((yValue - adjustedYMin) / adjustedYRange * graphHeight)
+            canvas.drawLine(paddingLeft, yPos, paddingLeft + graphWidth, yPos, gridPaint)
+            canvas.drawText(yValue.toInt().toString(), paddingLeft - 10f, yPos + 5f, yLabelPaint)
+            yValue += yStep
+        }
+        
+        // Draw X-axis grid lines and labels (every 1 minute)
         for (i in 0..maxIntervals) {
             val xPos = paddingLeft + (i.toFloat() / maxIntervals * graphWidth)
             canvas.drawLine(xPos, paddingTop, xPos, paddingTop + graphHeight, gridPaint)
             val timeStr = formatTime(i.toFloat(), data.intervalSeconds)
-            canvas.drawText(timeStr, xPos, paddingTop + graphHeight + 20f, labelPaint)
+            canvas.drawText(timeStr, xPos, paddingTop + graphHeight + 25f, labelPaint)
         }
         
-        // Draw horizontal grid lines
-        canvas.drawLine(paddingLeft, paddingTop + graphHeight / 2, paddingLeft + graphWidth, paddingTop + graphHeight / 2, gridPaint)
+        // Draw axes
+        canvas.drawLine(paddingLeft, paddingTop, paddingLeft, paddingTop + graphHeight, axisPaint)
+        canvas.drawLine(paddingLeft, paddingTop + graphHeight, paddingLeft + graphWidth, paddingTop + graphHeight, axisPaint)
         
-        // Draw ROR points with values (intervals + events)
-        rorData.forEach { point ->
-            point.ror?.let { ror ->
-                val x = paddingLeft + (point.intervalNumber / maxIntervals * graphWidth)
-                val y = paddingTop + graphHeight / 2 // Center line
-                
-                // Draw point
-                canvas.drawCircle(x, y, 5f, pointPaint)
-                
-                // Draw value above/below point
-                val valueY = if (ror >= 0) y - 15f else y + 25f
-                canvas.drawText(ror.toString(), x, valueY, valuePaint)
+        // Draw ROR line
+        if (rorData.isNotEmpty()) {
+            val path = Path()
+            var firstPoint = true
+
+            rorData.forEach { point ->
+                point.ror?.let { ror ->
+                    val x = paddingLeft + (point.intervalNumber / maxIntervals * graphWidth)
+                    val y = paddingTop + graphHeight - ((ror - adjustedYMin) / adjustedYRange * graphHeight)
+
+                    if (firstPoint) {
+                        path.moveTo(x, y)
+                        firstPoint = false
+                    } else {
+                        path.lineTo(x, y)
+                    }
+                }
+            }
+
+            canvas.drawPath(path, linePaint)
+
+            // Draw points (circles) after line
+            rorData.forEach { point ->
+                point.ror?.let { ror ->
+                    val x = paddingLeft + (point.intervalNumber / maxIntervals * graphWidth)
+                    val y = paddingTop + graphHeight - ((ror - adjustedYMin) / adjustedYRange * graphHeight)
+                    canvas.drawCircle(x, y, 5f, pointPaint)
+                }
             }
         }
-        
+
         return bitmap
     }
 
