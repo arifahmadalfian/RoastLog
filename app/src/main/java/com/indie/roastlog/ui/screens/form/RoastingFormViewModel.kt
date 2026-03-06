@@ -31,17 +31,17 @@ data class RoastingFormState(
     
     // Plans
     val burnerPlan: List<RoastingEvent> = listOf(
-        RoastingEvent(30, 3 * 60 + 30),
+        RoastingEvent(30, 2 * 60 + 30),
         RoastingEvent(50, 6 * 60 + 30),
         RoastingEvent(70, 9 * 60 + 30)
     ),
     val airFlowPlan: List<RoastingEvent> = listOf(
-        RoastingEvent(30, 3 * 60 + 35),
+        RoastingEvent(30, 2 * 60 + 35),
         RoastingEvent(50, 6 * 60 + 35),
         RoastingEvent(70, 9 * 60 + 35)
     ),
     val rpmPlan: List<RoastingEvent> = listOf(
-        RoastingEvent(30, 3 * 60 + 40),
+        RoastingEvent(30, 2 * 60 + 40),
         RoastingEvent(50, 6 * 60 + 40),
         RoastingEvent(70, 9 * 60 + 40)
     ),

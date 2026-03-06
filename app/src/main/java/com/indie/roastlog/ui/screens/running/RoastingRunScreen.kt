@@ -548,28 +548,27 @@ fun RoastingRunScreen(
             )
         }
 
-        // Check for Air Flow and RPM events based on elapsed time
-        val currentAirFlowEvent = uiState.setupData.airFlowPlan.find { it.seconds == (uiState.elapsedMillis / 1000).toInt() }
-        if (currentAirFlowEvent != null) {
+        if (uiState.showAirFlowDialog) {
+            val event = uiState.setupData.airFlowPlan.getOrNull(uiState.currentAirFlowIndex)
             AutoCloseAlertDialog(
                 icon = Icons.Default.Air,
                 iconTint = Color(0xFF0288D1),
                 title = "Air Flow Power",
-                value = currentAirFlowEvent.temperature.toInt().toString(),
-                time = currentAirFlowEvent.time,
-                onDismiss = { /* Auto-close handled in component */ }
+                value = event?.temperature?.toInt()?.toString() ?: "-",
+                time = event?.time ?: "-",
+                onDismiss = { viewModel.dismissAirFlowDialog() }
             )
         }
 
-        val currentRpmEvent = uiState.setupData.rpmPlan.find { it.seconds == (uiState.elapsedMillis / 1000).toInt() }
-        if (currentRpmEvent != null) {
+        if (uiState.showRpmDialog) {
+            val event = uiState.setupData.rpmPlan.getOrNull(uiState.currentRpmIndex)
             AutoCloseAlertDialog(
                 icon = Icons.Default.Sync,
                 iconTint = Color(0xFF43A047),
                 title = "RPM Drum Speed",
-                value = currentRpmEvent.temperature.toInt().toString(),
-                time = currentRpmEvent.time,
-                onDismiss = { /* Auto-close handled in component */ }
+                value = event?.temperature?.toInt()?.toString() ?: "-",
+                time = event?.time ?: "-",
+                onDismiss = { viewModel.dismissRpmDialog() }
             )
         }
     }
