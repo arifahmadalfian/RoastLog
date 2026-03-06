@@ -91,13 +91,13 @@ fun RoastingChartRor(
             AndroidView(
                 factory = { context ->
                     LineChart(context).apply {
-                        setupHorizontalChart()
+                        setupHorizontalChartRor()
                         setRorData(data)
                         invalidate()
                     }
                 },
                 update = { chart ->
-                    chart.setupHorizontalChart()
+                    chart.setupHorizontalChartRor()
                     chart.setRorData(data)
                     chart.invalidate()
                 },
@@ -215,6 +215,45 @@ fun RoastingChartBurner(
 }
 
 private fun LineChart.setupHorizontalChart() {
+    description.isEnabled = false
+    legend.isEnabled = false
+    setTouchEnabled(true)
+    setScaleEnabled(true)
+    setPinchZoom(false)
+    setDrawGridBackground(false)
+    setBackgroundColor(Color.TRANSPARENT)
+
+    xAxis.apply {
+        position = XAxis.XAxisPosition.BOTTOM
+        setDrawGridLines(true)
+        gridColor = Color.TRANSPARENT
+        setDrawAxisLine(true)
+        axisLineColor = Color.TRANSPARENT
+        setDrawLabels(true)
+        textColor = Color.TRANSPARENT
+        granularity = 0.1f
+        textSize = 11f
+        axisMinimum = 0f
+        labelRotationAngle = -45f
+    }
+
+    axisLeft.apply {
+        setDrawGridLines(true)
+        gridColor = Color.TRANSPARENT
+        setDrawAxisLine(true)
+        axisLineColor = Color.TRANSPARENT
+        setDrawLabels(true)
+        textColor = Color.TRANSPARENT
+        axisMinimum = 239f
+        axisMaximum = 241f
+        textSize = 12f
+        labelCount = 1
+    }
+
+    axisRight.isEnabled = false
+}
+
+private fun LineChart.setupHorizontalChartRor() {
     description.isEnabled = false
     legend.isEnabled = false
     setTouchEnabled(true)

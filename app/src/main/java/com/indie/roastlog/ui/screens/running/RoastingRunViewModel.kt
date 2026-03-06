@@ -110,7 +110,7 @@ class RoastingRunViewModel : ViewModel() {
         listOfNotNull(state.actualTurnPoint, state.actualYellowing, state.actualFirstCrack, state.actualEndRoast)
             .forEach { points.add(it.seconds to it.temperature) }
         
-        // Sort by time and remove duplicates (keep highest temp if same time)
+        // Sort by time and remove duplicates
         val uniquePoints = points.sortedBy { it.first }
             .groupBy { it.first }
             .map { (_, temps) -> temps.maxByOrNull { it.second } ?: temps.first() }
@@ -369,25 +369,15 @@ class RoastingRunViewModel : ViewModel() {
     }
 
     fun getChartRor(): List<ChartDataPoint> {
-        val state = _uiState.value.setupData
-        val duration = state.targetDuration.toIntOrNull() ?: return emptyList()
-        val interval = state.intervalSeconds.toIntOrNull() ?: 60
-        if (duration <= 0 || interval <= 0) return emptyList()
+        val positions = getAllChartPositions()
+        if (positions.isEmpty()) return emptyList()
 
-        val dataMap = _uiState.value.intervalDataList.associateBy { it.intervalNumber }
-        val totalSeconds = duration * 60
-        val maxIntervals = totalSeconds / interval
-
-        return (0..maxIntervals).map { intervalNum ->
-            val secondsAtThisInterval = intervalNum * interval
-            val intervalData = dataMap[intervalNum]
-            val currentTemp = intervalData?.temperature
-            val prevTemp = if (intervalNum > 0) dataMap[intervalNum - 1]?.temperature else null
-            val rorValue = if (intervalNum > 0 && currentTemp != null && prevTemp != null) currentTemp - prevTemp else null
+        return positions.map { (intervalNum, seconds) ->
+            val rorValue = getRorValueForChart(seconds)
 
             ChartDataPoint(
-                intervalNumber = intervalNum.toFloat(),
-                totalSeconds = secondsAtThisInterval,
+                intervalNumber = intervalNum,
+                totalSeconds = seconds,
                 temperature = null,
                 ror = rorValue,
                 airFlowPower = "",
@@ -397,25 +387,96 @@ class RoastingRunViewModel : ViewModel() {
         }
     }
 
+    private fun getRorValueForChart(seconds: Int): Int? {
+        // At second 0, RoR is 0 (starting point, no previous data)
+        if (seconds == 0) return 0
+        
+        val currentTemp = getTemperatureAtSeconds(seconds) ?: return null
+        val prevTemp = getPreviousTemperature(seconds) ?: return null
+        return currentTemp - prevTemp
+    }
+
+    private fun getTemperatureAtSeconds(seconds: Int): Int? {
+        val state = _uiState.value
+        val intervalSec = state.setupData.intervalSeconds.toIntOrNull() ?: 60
+
+        // Build list of all data points with their exact timestamps
+        val points = mutableListOf<Pair<Int, Int>>()
+
+        // Add charge time temp at 0 seconds
+        val chargeTemp = state.setupData.chargeTimeTemp.toIntOrNull()
+        if (chargeTemp != null) {
+            points.add(0 to chargeTemp)
+        }
+
+        // Add interval data points
+        state.intervalDataList.forEach {
+            points.add(it.intervalNumber * intervalSec to it.temperature)
+        }
+
+        // Add event mark points
+        listOfNotNull(state.actualTurnPoint, state.actualYellowing, state.actualFirstCrack, state.actualEndRoast)
+            .forEach { points.add(it.seconds to it.temperature) }
+
+        // Find exact match or interpolate
+        val sortedPoints = points.sortedBy { it.first }
+
+        // Check for exact match
+        sortedPoints.find { it.first == seconds }?.let { return it.second }
+
+        // Find surrounding points for interpolation
+        val before = sortedPoints.lastOrNull { it.first < seconds }
+        val after = sortedPoints.firstOrNull { it.first > seconds }
+
+        return when {
+            before != null && after != null -> {
+                // Linear interpolation
+                val ratio = (seconds - before.first).toFloat() / (after.first - before.first)
+                (before.second + ratio * (after.second - before.second)).toInt()
+            }
+            before != null -> before.second
+            after != null -> after.second
+            else -> null
+        }
+    }
+
+    private fun getPreviousTemperature(seconds: Int): Int? {
+        val state = _uiState.value
+        val intervalSec = state.setupData.intervalSeconds.toIntOrNull() ?: 60
+
+        val points = mutableListOf<Pair<Int, Int>>()
+
+        val chargeTemp = state.setupData.chargeTimeTemp.toIntOrNull()
+        if (chargeTemp != null) {
+            points.add(0 to chargeTemp)
+        }
+
+        state.intervalDataList.forEach {
+            points.add(it.intervalNumber * intervalSec to it.temperature)
+        }
+
+        listOfNotNull(state.actualTurnPoint, state.actualYellowing, state.actualFirstCrack, state.actualEndRoast)
+            .forEach { points.add(it.seconds to it.temperature) }
+
+        return points.sortedBy { it.first }.lastOrNull { it.first < seconds }?.second
+    }
+
     fun getChartAirFlow(): List<ChartDataPoint> {
         val state = _uiState.value.setupData
-        val duration = state.targetDuration.toIntOrNull() ?: return emptyList()
-        val interval = state.intervalSeconds.toIntOrNull() ?: 60
-        if (duration <= 0 || interval <= 0) return emptyList()
+        val positions = getAllChartPositions()
+        if (positions.isEmpty()) return emptyList()
 
-        val totalSeconds = duration * 60
-        val maxIntervals = totalSeconds / interval
+        val startValue = state.airFlowPower.toIntOrNull() ?: 0
 
-        return (0..maxIntervals).map { intervalNum ->
-            val secondsAtThisInterval = intervalNum * interval
-            val airFlowEvent = state.airFlowPlan.find { it.seconds == secondsAtThisInterval }
+        return positions.map { (intervalNum, seconds) ->
+            val airFlowValue = getInterpolatedPlanValue(state.airFlowPlan, seconds, startValue)
 
             ChartDataPoint(
-                intervalNumber = intervalNum.toFloat(),
-                totalSeconds = secondsAtThisInterval,
+                intervalNumber = intervalNum,
+                totalSeconds = seconds,
                 temperature = null,
                 ror = null,
-                airFlowPower = airFlowEvent?.temperature?.toString() ?: "",
+                airFlowPower = airFlowValue.toString(),
                 rpmDrum = "",
                 burnerPower = ""
             )
@@ -424,24 +485,21 @@ class RoastingRunViewModel : ViewModel() {
 
     fun getChartRpm(): List<ChartDataPoint> {
         val state = _uiState.value.setupData
-        val duration = state.targetDuration.toIntOrNull() ?: return emptyList()
-        val interval = state.intervalSeconds.toIntOrNull() ?: 60
-        if (duration <= 0 || interval <= 0) return emptyList()
+        val positions = getAllChartPositions()
+        if (positions.isEmpty()) return emptyList()
 
-        val totalSeconds = duration * 60
-        val maxIntervals = totalSeconds / interval
+        val startValue = state.rpmDrum.toIntOrNull() ?: 0
 
-        return (0..maxIntervals).map { intervalNum ->
-            val secondsAtThisInterval = intervalNum * interval
-            val rpmEvent = state.rpmPlan.find { it.seconds == secondsAtThisInterval }
+        return positions.map { (intervalNum, seconds) ->
+            val rpmValue = getInterpolatedPlanValue(state.rpmPlan, seconds, startValue)
 
             ChartDataPoint(
-                intervalNumber = intervalNum.toFloat(),
-                totalSeconds = secondsAtThisInterval,
+                intervalNumber = intervalNum,
+                totalSeconds = seconds,
                 temperature = null,
                 ror = null,
                 airFlowPower = "",
-                rpmDrum = rpmEvent?.temperature?.toString() ?: "",
+                rpmDrum = rpmValue.toString(),
                 burnerPower = ""
             )
         }
@@ -449,6 +507,29 @@ class RoastingRunViewModel : ViewModel() {
 
     fun getChartBurner(): List<ChartDataPoint> {
         val state = _uiState.value.setupData
+        val positions = getAllChartPositions()
+        if (positions.isEmpty()) return emptyList()
+
+        val startValue = state.burnerPower.toIntOrNull() ?: 0
+
+        return positions.map { (intervalNum, seconds) ->
+            val burnerValue = getInterpolatedPlanValue(state.burnerPlan, seconds, startValue)
+
+            ChartDataPoint(
+                intervalNumber = intervalNum,
+                totalSeconds = seconds,
+                temperature = null,
+                ror = null,
+                airFlowPower = "",
+                rpmDrum = "",
+                burnerPower = burnerValue.toString()
+            )
+        }
+    }
+
+    private fun getAllChartPositions(): List<Pair<Float, Int>> {
+        val state = _uiState.value.setupData
+        val runningState = _uiState.value
         val duration = state.targetDuration.toIntOrNull() ?: return emptyList()
         val interval = state.intervalSeconds.toIntOrNull() ?: 60
         if (duration <= 0 || interval <= 0) return emptyList()
@@ -456,20 +537,46 @@ class RoastingRunViewModel : ViewModel() {
         val totalSeconds = duration * 60
         val maxIntervals = totalSeconds / interval
 
-        return (0..maxIntervals).map { intervalNum ->
-            val secondsAtThisInterval = intervalNum * interval
-            val burnerEvent = state.burnerPlan.find { it.seconds == secondsAtThisInterval }
+        val positions = mutableListOf<Pair<Float, Int>>()
 
-            ChartDataPoint(
-                intervalNumber = intervalNum.toFloat(),
-                totalSeconds = secondsAtThisInterval,
-                temperature = null,
-                ror = null,
-                airFlowPower = "",
-                rpmDrum = "",
-                burnerPower = burnerEvent?.temperature?.toString() ?: ""
-            )
+        // Add regular interval positions
+        for (i in 0..maxIntervals) {
+            positions.add(i.toFloat() to (i * interval))
         }
+
+        // Add event mark positions (fractional positions)
+        listOfNotNull(
+            runningState.actualTurnPoint,
+            runningState.actualYellowing,
+            runningState.actualFirstCrack,
+            runningState.actualEndRoast
+        ).forEach { ev ->
+            val eventIntervalNum = ev.seconds.toFloat() / interval
+            // Only add if not already in list
+            if (positions.none { it.first == eventIntervalNum }) {
+                positions.add(eventIntervalNum to ev.seconds)
+            }
+        }
+
+        return positions.sortedBy { it.first }
+    }
+
+    private fun getInterpolatedPlanValue(plan: List<RoastingEvent>, seconds: Int, startValue: Int): Int {
+        if (plan.isEmpty()) return startValue
+
+        val sortedPlan = plan.sortedBy { it.seconds }
+
+        // If before first plan point, use start value
+        val firstPoint = sortedPlan.first()
+        if (seconds < firstPoint.seconds) {
+            return startValue
+        }
+
+        // Find the last plan point at or before current seconds
+        val applicablePoint = sortedPlan.lastOrNull { it.seconds <= seconds }
+            ?: return startValue
+
+        return applicablePoint.temperature
     }
 
     fun saveToDatabase(context: Context) {
