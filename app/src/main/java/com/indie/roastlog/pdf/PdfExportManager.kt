@@ -342,8 +342,8 @@ class PdfExportManager(private val context: Context) {
         val maxIntervals = if (data.intervalSeconds > 0) totalSeconds / data.intervalSeconds else 0
         
         // Fixed width for PDF - all 20 intervals in one chart
-        val chartWidth = 2000 // Large width to accommodate all data points
-        val chartHeight = 200
+        val chartWidth = 800 // Large width to accommodate all data points
+        val chartHeight = 500
         
         val bitmap = createBitmap(chartWidth, chartHeight)
         val canvas = Canvas(bitmap)
@@ -352,7 +352,7 @@ class PdfExportManager(private val context: Context) {
         canvas.drawColor(Color.WHITE)
         
         val paddingLeft = 60f
-        val paddingRight = 20f
+        val paddingRight = 300f
         val paddingTop = 20f
         val paddingBottom = 40f
         
@@ -453,7 +453,7 @@ class PdfExportManager(private val context: Context) {
         val totalSeconds = data.targetDuration * 60
         val maxIntervals = if (data.intervalSeconds > 0) totalSeconds / data.intervalSeconds else 0
         
-        val chartWidth = 2000 // Same width as temperature chart
+        val chartWidth = 1000 // Same width as temperature chart
         val chartHeight = 80
         
         val bitmap = createBitmap(chartWidth, chartHeight)
