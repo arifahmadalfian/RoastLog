@@ -319,26 +319,26 @@ fun RoastingRunScreen(
                     )
                 }
 
-                // Air Flow chart
-                if (chartAirFlow.isNotEmpty()) {
-                    RoastingChartAirFlow(
-                        data = chartAirFlow
-                    )
-                }
-
-                // RPM chart
-                if (chartRpm.isNotEmpty()) {
-                    RoastingChartRpm(
-                        data = chartRpm
-                    )
-                }
-
-                // Burner chart
-                if (chartBurner.isNotEmpty()) {
-                    RoastingChartBurner(
-                        data = chartBurner
-                    )
-                }
+//                // Air Flow chart
+//                if (chartAirFlow.isNotEmpty()) {
+//                    RoastingChartAirFlow(
+//                        data = chartAirFlow
+//                    )
+//                }
+//
+//                // RPM chart
+//                if (chartRpm.isNotEmpty()) {
+//                    RoastingChartRpm(
+//                        data = chartRpm
+//                    )
+//                }
+//
+//                // Burner chart
+//                if (chartBurner.isNotEmpty()) {
+//                    RoastingChartBurner(
+//                        data = chartBurner
+//                    )
+//                }
             }
 
             

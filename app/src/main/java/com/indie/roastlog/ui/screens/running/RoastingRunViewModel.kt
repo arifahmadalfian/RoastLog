@@ -586,8 +586,8 @@ class RoastingRunViewModel : ViewModel() {
         val sortedPlan = state.airFlowPlan.sortedBy { it.seconds }
 
         return positions.map { (intervalNum, seconds) ->
-            // Find the last event that has been reached (based on dialog being shown)
-            val applicableValue = getValueAtTimeFromPlan(sortedPlan, seconds, runningState.confirmedAirFlowIndex)
+            // Show value when dialog is showing or has been confirmed
+            val applicableValue = getValueAtTimeFromPlan(sortedPlan, seconds, runningState.currentAirFlowIndex)
 
             ChartDataPoint(
                 intervalNumber = intervalNum,
@@ -610,7 +610,7 @@ class RoastingRunViewModel : ViewModel() {
         val sortedPlan = state.rpmPlan.sortedBy { it.seconds }
 
         return positions.map { (intervalNum, seconds) ->
-            val applicableValue = getValueAtTimeFromPlan(sortedPlan, seconds, runningState.confirmedRpmIndex)
+            val applicableValue = getValueAtTimeFromPlan(sortedPlan, seconds, runningState.currentRpmIndex)
 
             ChartDataPoint(
                 intervalNumber = intervalNum,
@@ -633,7 +633,7 @@ class RoastingRunViewModel : ViewModel() {
         val sortedPlan = state.burnerPlan.sortedBy { it.seconds }
 
         return positions.map { (intervalNum, seconds) ->
-            val applicableValue = getValueAtTimeFromPlan(sortedPlan, seconds, runningState.confirmedBurnerIndex)
+            val applicableValue = getValueAtTimeFromPlan(sortedPlan, seconds, runningState.currentBurnerIndex)
 
             ChartDataPoint(
                 intervalNumber = intervalNum,
