@@ -6,19 +6,11 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.os.Environment
 import android.provider.MediaStore
-import android.view.View
-import android.view.ViewGroup
-import com.github.mikephil.charting.charts.LineChart
-import com.github.mikephil.charting.components.XAxis
-import com.github.mikephil.charting.data.Entry
-import com.github.mikephil.charting.data.LineData
-import com.github.mikephil.charting.data.LineDataSet
-import com.github.mikephil.charting.formatter.ValueFormatter
-import com.indie.roastlog.ui.components.ChartDataPoint
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -27,6 +19,7 @@ import java.util.Date
 import java.util.Locale
 import androidx.core.graphics.toColorInt
 import androidx.core.graphics.createBitmap
+import com.indie.roastlog.ui.components.ChartDataPoint
 import kotlin.math.roundToInt
 
 data class RoastSessionData(
@@ -252,14 +245,12 @@ class PdfExportManager(private val context: Context) {
         chartCanvas.drawText("Grafik Temperatur:", 50f, yPosition, sectionPaint)
         yPosition += 15f
 
-        val chartBitmap = createChartBitmap(data)
-        val chartHeight = 240
+        val chartBitmap = createTemperatureChartBitmap(data)
+        val chartHeight = 200
         val availableWidth = 495f // Page width (595) - margins (100)
         
-        // Scale chart if it exceeds available width
-        val chartScale = if (chartBitmap.width > availableWidth) {
-            availableWidth / chartBitmap.width
-        } else 1f
+        // Scale chart to fit width
+        val chartScale = availableWidth / chartBitmap.width
         
         val destRect = android.graphics.RectF(
             50f, 
@@ -281,12 +272,10 @@ class PdfExportManager(private val context: Context) {
         yPosition += 15f
 
         val rorBitmap = createRorChartBitmap(data)
-        val rorChartHeight = 120
+        val rorChartHeight = 80
         
-        // Scale ROR chart if it exceeds available width
-        val rorScale = if (rorBitmap.width > availableWidth) {
-            availableWidth / rorBitmap.width
-        } else 1f
+        // Scale ROR chart to fit width
+        val rorScale = availableWidth / rorBitmap.width
         
         val rorDestRect = android.graphics.RectF(
             50f,
@@ -347,166 +336,193 @@ class PdfExportManager(private val context: Context) {
         else String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
     }
 
-    private fun createChartBitmap(data: RoastSessionData): Bitmap {
+    // Create temperature chart using native Canvas (fixed width for PDF)
+    private fun createTemperatureChartBitmap(data: RoastSessionData): Bitmap {
         val totalSeconds = data.targetDuration * 60
         val maxIntervals = if (data.intervalSeconds > 0) totalSeconds / data.intervalSeconds else 0
-        val maxX = maxIntervals.toFloat()
         
-        // Dynamic width based on data size (30dp per data point, minimum 480)
-        val chartWidth = maxOf(480, maxIntervals * 25)
-        val chartHeight = 240
-
-        val chart = LineChart(context).apply {
-            layoutParams = ViewGroup.LayoutParams(chartWidth, chartHeight)
-            setBackgroundColor(Color.WHITE)
-            description.isEnabled = false
-            legend.isEnabled = false
-            setDrawGridBackground(false)
-            setTouchEnabled(false)
-            setScaleEnabled(false)
-            setPinchZoom(false)
-
-            axisLeft.apply {
-                setDrawGridLines(true)
-                axisMinimum = 70f
-                axisMaximum = 240f
-                textColor = Color.BLACK
-                textSize = 3f
-                labelCount = 8
-                setLabelCount(8, true)
-                setDrawLabels(true)
-            }
-
-            axisRight.isEnabled = false
-
-            xAxis.apply {
-                position = XAxis.XAxisPosition.BOTTOM
-                setDrawGridLines(true)
-                granularity = 0.1f
-                textColor = Color.BLACK
-                textSize = 3f
-                axisMinimum = 0f
-                axisMaximum = maxX
-                // Show all labels for every interval
-                setLabelCount(maxIntervals + 1, true)
-                labelRotationAngle = -45f
-                valueFormatter = object : ValueFormatter() {
-                    override fun getFormattedValue(value: Float): String {
-                        return formatTime(value, data.intervalSeconds)
-                    }
-                }
-            }
-        }
-
-        val entries = data.temperatureData.mapNotNull { point ->
-            point.temperature?.let { Entry(point.intervalNumber, it.toFloat()) }
-        }
-
-        val dataSet = LineDataSet(entries, "Temperature").apply {
-            color = "#2196F3".toColorInt()
-            lineWidth = 2f
-            setDrawCircles(true)
-            setCircleColor("#2196F3".toColorInt())
-            circleRadius = 3f
-            setDrawValues(false)
-            mode = LineDataSet.Mode.LINEAR
-        }
-
-        chart.data = LineData(dataSet)
-
-        chart.measure(
-            View.MeasureSpec.makeMeasureSpec(chartWidth, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(chartHeight, View.MeasureSpec.EXACTLY)
-        )
-        chart.layout(0, 0, chartWidth, chartHeight)
-
+        // Fixed width for PDF - all 20 intervals in one chart
+        val chartWidth = 2000 // Large width to accommodate all data points
+        val chartHeight = 200
+        
         val bitmap = createBitmap(chartWidth, chartHeight)
         val canvas = Canvas(bitmap)
-        chart.draw(canvas)
-
+        
+        // Background
+        canvas.drawColor(Color.WHITE)
+        
+        val paddingLeft = 60f
+        val paddingRight = 20f
+        val paddingTop = 20f
+        val paddingBottom = 40f
+        
+        val graphWidth = chartWidth - paddingLeft - paddingRight
+        val graphHeight = chartHeight - paddingTop - paddingBottom
+        
+        // Paints
+        val gridPaint = Paint().apply {
+            color = Color.LTGRAY
+            strokeWidth = 1f
+        }
+        
+        val axisPaint = Paint().apply {
+            color = Color.BLACK
+            strokeWidth = 2f
+        }
+        
+        val labelPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 16f
+            textAlign = Paint.Align.CENTER
+        }
+        
+        val yLabelPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 16f
+            textAlign = Paint.Align.RIGHT
+        }
+        
+        val linePaint = Paint().apply {
+            color = "#2196F3".toColorInt()
+            strokeWidth = 3f
+            isAntiAlias = true
+        }
+        
+        val pointPaint = Paint().apply {
+            color = "#2196F3".toColorInt()
+            style = Paint.Style.FILL
+        }
+        
+        // Y-axis range (70 to 240)
+        val yMin = 70f
+        val yMax = 240f
+        val yRange = yMax - yMin
+        
+        // Draw Y-axis grid lines and labels (every 10 degrees: 70, 80, 90... 240)
+        val yStep = 10f
+        var y = yMin
+        while (y <= yMax) {
+            val yPos = paddingTop + graphHeight - ((y - yMin) / yRange * graphHeight)
+            canvas.drawLine(paddingLeft, yPos, paddingLeft + graphWidth, yPos, gridPaint)
+            canvas.drawText(y.toInt().toString(), paddingLeft - 10f, yPos + 5f, yLabelPaint)
+            y += yStep
+        }
+        
+        // Draw X-axis grid lines and labels (every 1 minute: 0, 1, 2... 20)
+        for (i in 0..maxIntervals) {
+            val xPos = paddingLeft + (i.toFloat() / maxIntervals * graphWidth)
+            canvas.drawLine(xPos, paddingTop, xPos, paddingTop + graphHeight, gridPaint)
+            val timeStr = formatTime(i.toFloat(), data.intervalSeconds)
+            canvas.drawText(timeStr, xPos, paddingTop + graphHeight + 25f, labelPaint)
+        }
+        
+        // Draw axes
+        canvas.drawLine(paddingLeft, paddingTop, paddingLeft, paddingTop + graphHeight, axisPaint)
+        canvas.drawLine(paddingLeft, paddingTop + graphHeight, paddingLeft + graphWidth, paddingTop + graphHeight, axisPaint)
+        
+        // Draw temperature line
+        if (data.temperatureData.isNotEmpty()) {
+            val path = Path()
+            var firstPoint = true
+            
+            data.temperatureData.forEach { point ->
+                point.temperature?.let { temp ->
+                    val x = paddingLeft + (point.intervalNumber / maxIntervals * graphWidth)
+                    val y = paddingTop + graphHeight - ((temp - yMin) / yRange * graphHeight)
+                    
+                    if (firstPoint) {
+                        path.moveTo(x, y)
+                        firstPoint = false
+                    } else {
+                        path.lineTo(x, y)
+                    }
+                    
+                    // Draw point
+                    canvas.drawCircle(x, y, 6f, pointPaint)
+                }
+            }
+            
+            canvas.drawPath(path, linePaint)
+        }
+        
         return bitmap
     }
 
+    // Create ROR chart using native Canvas
     private fun createRorChartBitmap(data: RoastSessionData): Bitmap {
         val totalSeconds = data.targetDuration * 60
         val maxIntervals = if (data.intervalSeconds > 0) totalSeconds / data.intervalSeconds else 0
-        val maxX = maxIntervals.toFloat()
         
-        // Dynamic width based on data size (25dp per data point, minimum 480)
-        val chartWidth = maxOf(480, maxIntervals * 25)
-        val chartHeight = 120
-
-        // Build ROR data with interpolation like in RoastingDetailScreen
-        val rorData = buildRorDataForPdf(data)
-
-        val chart = LineChart(context).apply {
-            layoutParams = ViewGroup.LayoutParams(chartWidth, chartHeight)
-            setBackgroundColor(Color.WHITE)
-            description.isEnabled = false
-            legend.isEnabled = false
-            setDrawGridBackground(false)
-            setTouchEnabled(false)
-            setScaleEnabled(false)
-            setPinchZoom(false)
-
-            axisLeft.apply {
-                setDrawGridLines(true)
-                setDrawLabels(true)
-                textColor = Color.BLACK
-                textSize = 3f
-            }
-
-            axisRight.isEnabled = false
-
-            xAxis.apply {
-                position = XAxis.XAxisPosition.BOTTOM
-                setDrawGridLines(false)
-                granularity = 0.1f
-                textColor = Color.BLACK
-                textSize = 3f
-                axisMinimum = 0f
-                axisMaximum = maxX
-                // Show all labels for every interval
-                setLabelCount(maxIntervals + 1, true)
-                labelRotationAngle = -45f
-                valueFormatter = object : ValueFormatter() {
-                    override fun getFormattedValue(value: Float): String {
-                        return formatTime(value, data.intervalSeconds)
-                    }
-                }
-            }
-        }
-
-        val entries = rorData.mapNotNull { point ->
-            point.ror?.let { Entry(point.intervalNumber, it.toFloat()) }
-        }
-
-        if (entries.isNotEmpty()) {
-            val dataSet = LineDataSet(entries, "ROR").apply {
-                color = "#4CAF50".toColorInt()
-                lineWidth = 2f
-                setDrawCircles(true)
-                setCircleColor("#4CAF50".toColorInt())
-                circleRadius = 2f
-                setDrawValues(false)
-                mode = LineDataSet.Mode.LINEAR
-            }
-
-            chart.data = LineData(dataSet)
-            chart.axisLeft.axisMinimum = entries.minOf { it.y } * 0.9f
-            chart.axisLeft.axisMaximum = entries.maxOf { it.y } * 1.1f
-        }
-
-        chart.measure(
-            View.MeasureSpec.makeMeasureSpec(chartWidth, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(chartHeight, View.MeasureSpec.EXACTLY)
-        )
-        chart.layout(0, 0, chartWidth, chartHeight)
-
+        val chartWidth = 2000 // Same width as temperature chart
+        val chartHeight = 80
+        
         val bitmap = createBitmap(chartWidth, chartHeight)
         val canvas = Canvas(bitmap)
-        chart.draw(canvas)
-
+        
+        // Background
+        canvas.drawColor(Color.WHITE)
+        
+        val paddingLeft = 60f
+        val paddingRight = 20f
+        val paddingTop = 10f
+        val paddingBottom = 30f
+        
+        val graphWidth = chartWidth - paddingLeft - paddingRight
+        val graphHeight = chartHeight - paddingTop - paddingBottom
+        
+        // Paints
+        val gridPaint = Paint().apply {
+            color = Color.LTGRAY
+            strokeWidth = 1f
+        }
+        
+        val labelPaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 16f
+            textAlign = Paint.Align.CENTER
+        }
+        
+        val valuePaint = Paint().apply {
+            color = Color.BLACK
+            textSize = 18f
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        
+        val pointPaint = Paint().apply {
+            color = "#4CAF50".toColorInt()
+            style = Paint.Style.FILL
+        }
+        
+        // Build ROR data
+        val rorData = buildRorDataForPdf(data)
+        
+        // Draw X-axis grid lines (every 1 minute: 0, 1, 2... 20)
+        for (i in 0..maxIntervals) {
+            val xPos = paddingLeft + (i.toFloat() / maxIntervals * graphWidth)
+            canvas.drawLine(xPos, paddingTop, xPos, paddingTop + graphHeight, gridPaint)
+            val timeStr = formatTime(i.toFloat(), data.intervalSeconds)
+            canvas.drawText(timeStr, xPos, paddingTop + graphHeight + 20f, labelPaint)
+        }
+        
+        // Draw horizontal grid lines
+        canvas.drawLine(paddingLeft, paddingTop + graphHeight / 2, paddingLeft + graphWidth, paddingTop + graphHeight / 2, gridPaint)
+        
+        // Draw ROR points with values (intervals + events)
+        rorData.forEach { point ->
+            point.ror?.let { ror ->
+                val x = paddingLeft + (point.intervalNumber / maxIntervals * graphWidth)
+                val y = paddingTop + graphHeight / 2 // Center line
+                
+                // Draw point
+                canvas.drawCircle(x, y, 5f, pointPaint)
+                
+                // Draw value above/below point
+                val valueY = if (ror >= 0) y - 15f else y + 25f
+                canvas.drawText(ror.toString(), x, valueY, valuePaint)
+            }
+        }
+        
         return bitmap
     }
 
@@ -516,8 +532,11 @@ class PdfExportManager(private val context: Context) {
         val totalSeconds = data.targetDuration * 60
         val maxIntervals = totalSeconds / interval
 
-        // Build all data points (interval data + events)
+        // Build all data points (charge temp + interval data + events)
         val allPoints = mutableListOf<Pair<Int, Int>>()
+
+        // Add charge temperature at second 0
+        allPoints.add(0 to data.startTemperature)
 
         // Add interval data points
         data.temperatureData.forEach { point ->
@@ -532,25 +551,90 @@ class PdfExportManager(private val context: Context) {
         data.firstCrackEvent?.let { allPoints.add(it.seconds to it.temperature) }
         data.endRoastEvent?.let { allPoints.add(it.seconds to it.temperature) }
 
-        val sortedPoints = allPoints.sortedBy { it.first }
+        // Remove duplicates and sort
+        val sortedPoints = allPoints.distinctBy { it.first }.sortedBy { it.first }
 
-        // Build positions (intervals only for ROR chart to keep it clean)
-        val positions = (0..maxIntervals).map { i ->
-            i.toFloat() to (i * interval)
-        }
-
-        // Calculate ROR for each position
-        return positions.mapNotNull { (intervalNum, seconds) ->
+        val result = mutableListOf<ChartDataPoint>()
+        
+        // Calculate ROR for each interval
+        for (i in 0..maxIntervals) {
+            val seconds = i * interval
             val rorValue = calculateRor(seconds, sortedPoints)
             rorValue?.let {
-                ChartDataPoint(
-                    intervalNumber = intervalNum,
-                    totalSeconds = seconds,
-                    temperature = getTemperatureAtSeconds(seconds, sortedPoints),
-                    ror = rorValue
+                result.add(
+                    ChartDataPoint(
+                        intervalNumber = i.toFloat(),
+                        totalSeconds = seconds,
+                        temperature = null,
+                        ror = rorValue
+                    )
                 )
             }
         }
+        
+        // Add ROR for events at their exact positions (fractional interval numbers)
+        data.turnPointEvent?.let { event ->
+            calculateRor(event.seconds, sortedPoints)?.let { ror ->
+                val intervalNum = event.seconds.toFloat() / interval
+                result.add(
+                    ChartDataPoint(
+                        intervalNumber = intervalNum,
+                        totalSeconds = event.seconds,
+                        temperature = null,
+                        ror = ror
+                    )
+                )
+            }
+        }
+        data.yellowingEvent?.let { event ->
+            calculateRor(event.seconds, sortedPoints)?.let { ror ->
+                val intervalNum = event.seconds.toFloat() / interval
+                result.add(
+                    ChartDataPoint(
+                        intervalNumber = intervalNum,
+                        totalSeconds = event.seconds,
+                        temperature = null,
+                        ror = ror
+                    )
+                )
+            }
+        }
+        data.firstCrackEvent?.let { event ->
+            calculateRor(event.seconds, sortedPoints)?.let { ror ->
+                val intervalNum = event.seconds.toFloat() / interval
+                result.add(
+                    ChartDataPoint(
+                        intervalNumber = intervalNum,
+                        totalSeconds = event.seconds,
+                        temperature = null,
+                        ror = ror
+                    )
+                )
+            }
+        }
+        data.endRoastEvent?.let { event ->
+            calculateRor(event.seconds, sortedPoints)?.let { ror ->
+                val intervalNum = event.seconds.toFloat() / interval
+                result.add(
+                    ChartDataPoint(
+                        intervalNumber = intervalNum,
+                        totalSeconds = event.seconds,
+                        temperature = null,
+                        ror = ror
+                    )
+                )
+            }
+        }
+        
+        return result.sortedBy { it.intervalNumber }
+    }
+
+    private fun calculateRor(seconds: Int, allPoints: List<Pair<Int, Int>>): Int? {
+        if (seconds == 0) return 0
+
+        val currentTemp = getTemperatureAtSeconds(seconds, allPoints) ?: return null
+        val prevTemp = allPoints.sortedBy { it.first }.lastOrNull { it.first < seconds }?.second ?: return null
+        return currentTemp - prevTemp
     }
 
     private fun getTemperatureAtSeconds(seconds: Int, allPoints: List<Pair<Int, Int>>): Int? {
@@ -570,13 +654,5 @@ class PdfExportManager(private val context: Context) {
             after != null -> after.second
             else -> null
         }
-    }
-
-    private fun calculateRor(seconds: Int, allPoints: List<Pair<Int, Int>>): Int? {
-        if (seconds == 0) return 0
-
-        val currentTemp = getTemperatureAtSeconds(seconds, allPoints) ?: return null
-        val prevTemp = allPoints.sortedBy { it.first }.lastOrNull { it.first < seconds }?.second ?: return null
-        return currentTemp - prevTemp
     }
 }
