@@ -101,12 +101,13 @@ fun RoastingChartRor(
                     }
                 },
                 update = { chart ->
+                    chart.setupHorizontalChart()
                     chart.setRorData(data)
                     chart.invalidate()
                 },
                 modifier = Modifier
                     .width(chartWidth.dp)
-                    .height(40.dp)
+                    .height(80.dp)
             )
         }
     }
@@ -139,12 +140,13 @@ fun RoastingChartAirFlow(
                     }
                 },
                 update = { chart ->
+                    chart.setupHorizontalChart()
                     chart.setAirFlowData(data)
                     chart.invalidate()
                 },
                 modifier = Modifier
                     .width(chartWidth.dp)
-                    .height(40.dp)
+                    .height(80.dp)
             )
         }
     }
@@ -177,12 +179,13 @@ fun RoastingChartRpm(
                     }
                 },
                 update = { chart ->
+                    chart.setupHorizontalChart()
                     chart.setRpmData(data)
                     chart.invalidate()
                 },
                 modifier = Modifier
                     .width(chartWidth.dp)
-                    .height(40.dp)
+                    .height(80.dp)
             )
         }
     }
@@ -215,12 +218,13 @@ fun RoastingChartBurner(
                     }
                 },
                 update = { chart ->
+                    chart.setupHorizontalChart()
                     chart.setBurnerData(data)
                     chart.invalidate()
                 },
                 modifier = Modifier
                     .width(chartWidth.dp)
-                    .height(40.dp)
+                    .height(80.dp)
             )
         }
     }
@@ -229,26 +233,29 @@ fun RoastingChartBurner(
 private fun LineChart.setupHorizontalChart() {
     description.isEnabled = false
     legend.isEnabled = false
-    setTouchEnabled(false)
-    setScaleEnabled(false)
+    setTouchEnabled(true)
+    setScaleEnabled(true)
     setPinchZoom(false)
     setDrawGridBackground(false)
     setBackgroundColor(Color.TRANSPARENT)
 
     xAxis.apply {
-        isEnabled = false
-        setDrawGridLines(false)
-        setDrawLabels(false)
-        setDrawAxisLine(false)
+        position = XAxis.XAxisPosition.BOTTOM
+        setDrawGridLines(true)
+        granularity = 0.1f
+        textColor = Color.BLACK
+        textSize = 11f
+        axisMinimum = 0f
+        labelRotationAngle = -45f
     }
 
     axisLeft.apply {
-        isEnabled = false
-        setDrawGridLines(false)
-        setDrawLabels(false)
-        setDrawAxisLine(false)
-        axisMinimum = 0f
-        axisMaximum = 1f
+        setDrawGridLines(true)
+        axisMinimum = 239f
+        axisMaximum = 241f
+        textColor = Color.BLACK
+        textSize = 12f
+        labelCount = 1
     }
 
     axisRight.isEnabled = false
@@ -264,7 +271,7 @@ private fun LineChart.setRorData(data: List<ChartDataPoint>) {
     xAxis.axisMaximum = maxX
 
     val entries = data.mapNotNull { point ->
-        point.ror?.let { Entry(point.intervalNumber, 0.5f, it.toString()) }
+        point.ror?.let { Entry(point.intervalNumber, 240f, it.toString()) }
     }
 
     val dataSet = LineDataSet(entries, "ROR").apply {
@@ -272,7 +279,7 @@ private fun LineChart.setRorData(data: List<ChartDataPoint>) {
         lineWidth = 0f
         setDrawCircles(true)
         setCircleColor("#4CAF50".toColorInt())
-        circleRadius = 2f
+        circleRadius = 5f
         setDrawCircleHole(false)
         mode = LineDataSet.Mode.LINEAR
         setDrawValues(true)
@@ -301,7 +308,7 @@ private fun LineChart.setAirFlowData(data: List<ChartDataPoint>) {
 
     val entries = data.map { point ->
         val displayValue = point.airFlowPower.ifEmpty { "-" }
-        Entry(point.intervalNumber, 0.5f, displayValue)
+        Entry(point.intervalNumber, 240f, displayValue)
     }
 
     val dataSet = LineDataSet(entries, "AirFlow").apply {
@@ -309,7 +316,7 @@ private fun LineChart.setAirFlowData(data: List<ChartDataPoint>) {
         lineWidth = 0f
         setDrawCircles(true)
         setCircleColor("#2196F3".toColorInt())
-        circleRadius = 2f
+        circleRadius = 5f
         setDrawCircleHole(false)
         mode = LineDataSet.Mode.LINEAR
         setDrawValues(true)
@@ -338,7 +345,7 @@ private fun LineChart.setRpmData(data: List<ChartDataPoint>) {
 
     val entries = data.map { point ->
         val displayValue = point.rpmDrum.ifEmpty { "-" }
-        Entry(point.intervalNumber, 0.5f, displayValue)
+        Entry(point.intervalNumber, 240f, displayValue)
     }
 
     val dataSet = LineDataSet(entries, "RPM").apply {
@@ -346,7 +353,7 @@ private fun LineChart.setRpmData(data: List<ChartDataPoint>) {
         lineWidth = 0f
         setDrawCircles(true)
         setCircleColor("#FF9800".toColorInt())
-        circleRadius = 2f
+        circleRadius = 5f
         setDrawCircleHole(false)
         mode = LineDataSet.Mode.LINEAR
         setDrawValues(true)
@@ -375,7 +382,7 @@ private fun LineChart.setBurnerData(data: List<ChartDataPoint>) {
 
     val entries = data.map { point ->
         val displayValue = point.burnerPower.ifEmpty { "-" }
-        Entry(point.intervalNumber, 0.5f, displayValue)
+        Entry(point.intervalNumber, 240f, displayValue)
     }
 
     val dataSet = LineDataSet(entries, "Burner").apply {
@@ -383,7 +390,7 @@ private fun LineChart.setBurnerData(data: List<ChartDataPoint>) {
         lineWidth = 0f
         setDrawCircles(true)
         setCircleColor("#F44336".toColorInt())
-        circleRadius = 2f
+        circleRadius = 5f
         setDrawCircleHole(false)
         mode = LineDataSet.Mode.LINEAR
         setDrawValues(true)
