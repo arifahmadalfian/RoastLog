@@ -316,35 +316,27 @@ fun RoastingRunScreen(
                 if (chartRor.isNotEmpty()) {
                     RoastingChartRor(
                         data = chartRor,
-                        intervalSeconds = intervalSeconds,
-                        modifier = Modifier.fillMaxWidth()
                     )
                 }
 
                 // Air Flow chart
                 if (chartAirFlow.isNotEmpty()) {
                     RoastingChartAirFlow(
-                        data = chartAirFlow,
-                        intervalSeconds = intervalSeconds,
-                        modifier = Modifier.fillMaxWidth()
+                        data = chartAirFlow
                     )
                 }
 
                 // RPM chart
                 if (chartRpm.isNotEmpty()) {
                     RoastingChartRpm(
-                        data = chartRpm,
-                        intervalSeconds = intervalSeconds,
-                        modifier = Modifier.fillMaxWidth()
+                        data = chartRpm
                     )
                 }
 
                 // Burner chart
                 if (chartBurner.isNotEmpty()) {
                     RoastingChartBurner(
-                        data = chartBurner,
-                        intervalSeconds = intervalSeconds,
-                        modifier = Modifier.fillMaxWidth()
+                        data = chartBurner
                     )
                 }
             }

@@ -77,12 +77,8 @@ fun RoastingChart(
 @Composable
 fun RoastingChartRor(
     data: List<ChartDataPoint>,
-    intervalSeconds: Int,
-    modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier.padding(top = 8.dp, bottom = 4.dp)
-    ) {
+    Column{
         Text(
             text = "ROR (kenaikan suhu bean per menit)",
             fontSize = 10.sp,
@@ -116,12 +112,8 @@ fun RoastingChartRor(
 @Composable
 fun RoastingChartAirFlow(
     data: List<ChartDataPoint>,
-    intervalSeconds: Int,
-    modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier.padding(top = 8.dp, bottom = 4.dp)
-    ) {
+    Column{
         Text(
             text = "Air Flow Power (besaran buangan asap)",
             fontSize = 10.sp,
@@ -155,12 +147,8 @@ fun RoastingChartAirFlow(
 @Composable
 fun RoastingChartRpm(
     data: List<ChartDataPoint>,
-    intervalSeconds: Int,
-    modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier.padding(top = 8.dp, bottom = 4.dp)
-    ) {
+    Column{
         Text(
             text = "RPM Drum (kecepatan putaran drum)",
             fontSize = 10.sp,
@@ -194,12 +182,8 @@ fun RoastingChartRpm(
 @Composable
 fun RoastingChartBurner(
     data: List<ChartDataPoint>,
-    intervalSeconds: Int,
-    modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier.padding(top = 8.dp, bottom = 4.dp)
-    ) {
+    Column{
         Text(
             text = "Burner Power (besaran tekanan api)",
             fontSize = 10.sp,
