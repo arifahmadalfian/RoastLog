@@ -358,13 +358,16 @@ fun RoastingRunScreen(
 //                }
             }
 
-            
+            val isEnable = uiState.actualEndRoast != null && uiState.weightOut.isNotEmpty() && uiState.intervalDataList.isNotEmpty()
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
-                    onClick = { showRevisionDialog = true },
+                    onClick = { 
+                        selectedRevisionIndex = null // Reset selection saat buka dialog
+                        showRevisionDialog = true 
+                    },
                     modifier = Modifier.weight(1f),
-                    enabled = uiState.intervalDataList.isNotEmpty()
+                    enabled = uiState.intervalDataList.isNotEmpty() || uiState.eventMarks.isNotEmpty()
                 ) {
                     Text("Revisi Suhu")
                 }
@@ -379,7 +382,7 @@ fun RoastingRunScreen(
                         }
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = uiState.intervalDataList.isNotEmpty()
+                    enabled = isEnable
                 ) {
                     Icon(Icons.Default.PictureAsPdf, null)
                     Spacer(Modifier.width(8.dp))
@@ -387,8 +390,6 @@ fun RoastingRunScreen(
                 }
             }
 
-            // Save Button logic: Enabled if End Roast event is marked AND Weight Out is not empty
-            val isReadyToSave = uiState.actualEndRoast != null && uiState.weightOut.isNotEmpty()
 
             // Save Button
             Button(
@@ -401,7 +402,7 @@ fun RoastingRunScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                enabled = isReadyToSave
+                enabled = isEnable
             ) {
                 Icon(Icons.Default.Save, null)
                 Spacer(Modifier.width(8.dp))
