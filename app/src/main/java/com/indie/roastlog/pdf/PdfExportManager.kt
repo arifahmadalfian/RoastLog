@@ -53,6 +53,15 @@ data class RoastSessionData(
     val ror: String,
     // Burner Events
     val burnerEvents: List<String>,
+    // Plans
+    val burnerPlan: List<com.indie.roastlog.ui.model.RoastingEvent>,
+    val airFlowPlan: List<com.indie.roastlog.ui.model.RoastingEvent>,
+    val rpmPlan: List<com.indie.roastlog.ui.model.RoastingEvent>,
+    // Events for ROR calculation
+    val turnPointEvent: com.indie.roastlog.ui.model.RoastingEvent?,
+    val yellowingEvent: com.indie.roastlog.ui.model.RoastingEvent?,
+    val firstCrackEvent: com.indie.roastlog.ui.model.RoastingEvent?,
+    val endRoastEvent: com.indie.roastlog.ui.model.RoastingEvent?,
     // Timer & Chart
     val targetDuration: Int,
     val intervalSeconds: Int,
@@ -148,111 +157,120 @@ class PdfExportManager(private val context: Context) {
         firstCanvas.drawText("Tanggal: ${dateFormat.format(data.roastDate)}", 50f, yPosition, labelPaint)
         yPosition += 20f
 
-        // === Informasi Bean ===
-        firstCanvas.drawText("Informasi Bean", 50f, yPosition, sectionPaint)
+        // === Informasi Setup Roasting ===
+        firstCanvas.drawText("Informasi Setup Roasting", 50f, yPosition, sectionPaint)
         yPosition += 15f
 
-        firstCanvas.drawText("Jenis Bean", 50f, yPosition, labelPaint)
-        firstCanvas.drawText(data.beanType.ifEmpty { "-" }, 50f, yPosition + 10f, valuePaint)
-        yPosition += 22f
-
         yPosition = drawRow4(firstCanvas, yPosition, listOf(
-            "Kadar Air (°)" to data.waterContent.ifEmpty { "-" },
-            "Density (kg/L)" to data.density.ifEmpty { "-" },
-            "Berat Masuk (gr)" to data.weightIn.ifEmpty { "-" },
-            "Berat Keluar (gr)" to data.weightOut.ifEmpty { "-" }
+            "Bean" to data.beanType.ifEmpty { "-" },
+            "Kadar Air" to "${data.waterContent.ifEmpty { "-" }}%",
+            "Density" to "${data.density.ifEmpty { "-" }} kg/L",
+            "Roast Type" to data.roastType.ifEmpty { "-" }
         ))
 
-        val weightLoss = if (data.weightIn.isNotEmpty() && data.weightOut.isNotEmpty()) {
-            val inWeight = data.weightIn.toFloatOrNull() ?: 0f
-            val outWeight = data.weightOut.toFloatOrNull() ?: 0f
-            val loss = inWeight - outWeight
-            val lossPercent = if (inWeight > 0) (loss / inWeight) * 100 else 0f
-            "%.1f gr (%.1f%%)".format(loss, lossPercent)
-        } else "N/A"
-        yPosition = drawRow2(firstCanvas, yPosition,
-            "Weight Loss", weightLoss,
-            "Roasted Type", data.roastType.ifEmpty { "-" }
-        )
-
-        // === Time & Temperature ===
-        firstCanvas.drawText("Time & Temperature", 50f, yPosition, sectionPaint)
-        yPosition += 15f
-
         yPosition = drawRow4(firstCanvas, yPosition, listOf(
+            "Berat Masuk (gr)" to data.weightIn.ifEmpty { "-" },
+            "Berat Keluar (gr)" to data.weightOut.ifEmpty { "-" },
             "Charge Temp (°C)" to data.chargeTimeTemp.ifEmpty { "-" },
-            "End Temp (°C)" to data.endTimeTemp.ifEmpty { "-" },
-            "Roast Time" to data.roastTime.ifEmpty { "-" },
-            "Dev Time" to data.devTime.ifEmpty { "-" }
+            "End Temp (°C)" to data.endTimeTemp.ifEmpty { "-" }
         ))
 
         yPosition += 5f
 
-        // === Event Roasting ===
-        firstCanvas.drawText("Event Roasting", 50f, yPosition, sectionPaint)
+        // === Plans (Burner, Air Flow, RPM) ===
+        firstCanvas.drawText("Rencana Mesin", 50f, yPosition, sectionPaint)
+        yPosition += 15f
+
+        // Burner Plan
+        if (data.burnerPlan.isNotEmpty()) {
+            firstCanvas.drawText("Burner Plan:", 50f, yPosition, labelPaint)
+            yPosition += 10f
+            val burnerText = data.burnerPlan.joinToString(" | ") { "${it.temperature} @ ${it.time}" }
+            firstCanvas.drawText(burnerText, 50f, yPosition, valuePaint)
+            yPosition += 15f
+        }
+
+        // Air Flow Plan
+        if (data.airFlowPlan.isNotEmpty()) {
+            firstCanvas.drawText("Air Flow Plan:", 50f, yPosition, labelPaint)
+            yPosition += 10f
+            val airFlowText = data.airFlowPlan.joinToString(" | ") { "${it.temperature} @ ${it.time}" }
+            firstCanvas.drawText(airFlowText, 50f, yPosition, valuePaint)
+            yPosition += 15f
+        }
+
+        // RPM Plan
+        if (data.rpmPlan.isNotEmpty()) {
+            firstCanvas.drawText("RPM Plan:", 50f, yPosition, labelPaint)
+            yPosition += 10f
+            val rpmText = data.rpmPlan.joinToString(" | ") { "${it.temperature} @ ${it.time}" }
+            firstCanvas.drawText(rpmText, 50f, yPosition, valuePaint)
+            yPosition += 15f
+        }
+
+        yPosition += 5f
+
+        // === Hasil Roasting ===
+        firstCanvas.drawText("Hasil Roasting", 50f, yPosition, sectionPaint)
+        yPosition += 15f
+
+        yPosition = drawRow4(firstCanvas, yPosition, listOf(
+            "Roast Time" to data.roastTime.ifEmpty { "-" },
+            "Dev Time" to data.devTime.ifEmpty { "-" },
+            "End Temp (°C)" to data.endTimeTemp.ifEmpty { "-" },
+            "Weight Loss" to if (data.weightIn.isNotEmpty() && data.weightOut.isNotEmpty()) {
+                val inWeight = data.weightIn.toFloatOrNull() ?: 0f
+                val outWeight = data.weightOut.toFloatOrNull() ?: 0f
+                val loss = inWeight - outWeight
+                val lossPercent = if (inWeight > 0) (loss / inWeight) * 100 else 0f
+                "%.1f gr (%.1f%%)".format(loss, lossPercent)
+            } else "N/A"
+        ))
+
+        yPosition += 5f
+
+        // === Milestones ===
+        firstCanvas.drawText("Milestones", 50f, yPosition, sectionPaint)
         yPosition += 15f
 
         yPosition = drawRow4(firstCanvas, yPosition, listOf(
             "Turn Point" to data.turnPoint.ifEmpty { "-" },
             "Yellowing" to data.yellowing.ifEmpty { "-" },
             "First Crack" to data.firstCrack.ifEmpty { "-" },
-            "End Roasting" to data.endRoasting.ifEmpty { "-" }
+            "End Roast" to data.endRoasting.ifEmpty { "-" }
         ))
 
-        yPosition += 5f
-
-        // === Machine Log Table ===
-        firstCanvas.drawText("Machine Parameters Log", 50f, yPosition, sectionPaint)
         yPosition += 15f
 
-        // Draw Table Header
-        val headers = listOf("Time", "Temp", "ROR", "Air", "RPM", "Burner")
-        val colWidths = listOf(60f, 60f, 60f, 60f, 60f, 60f)
-        var currentX = 50f
-        headers.forEachIndexed { i, header ->
-            firstCanvas.drawText(header, currentX, yPosition, tableHeaderPaint)
-            currentX += colWidths[i]
-        }
-        yPosition += 12f
-
-        // Draw Table Content (Filter only whole interval points like in the app)
-        data.temperatureData.forEach { point ->
-            // Check if we need a new page
-            if (yPosition > 800f) {
-                canvas = startNewPage()
-                yPosition = 50f
-                // Redraw header on new page if needed, but for simplicity let's just continue
-            }
-            
-            val timeStr = formatTime(point.intervalNumber, data.intervalSeconds)
-            val tempStr = point.temperature?.toString() ?: "-"
-            val rorStr = point.ror?.let { String.format(Locale.getDefault(), "%d", it) } ?: "-"
-            
-            currentX = 50f
-            val rowValues = listOf(timeStr, tempStr, rorStr, point.airFlowPower, point.rpmDrum, point.burnerPower)
-            rowValues.forEachIndexed { i, value ->
-                canvas!!.drawText(value.ifEmpty { "-" }, currentX, yPosition, tableContentPaint)
-                currentX += colWidths[i]
-            }
-            yPosition += 10f
-        }
-
-        yPosition += 15f
-
-        // Temperature Profile (Diagram)
+        // Temperature Profile Chart
         if (yPosition > 400f) {
             canvas = startNewPage()
             yPosition = 50f
         }
 
         val chartCanvas = canvas!!
-        chartCanvas.drawText("Temperature Profile:", 50f, yPosition, sectionPaint)
+        chartCanvas.drawText("Grafik Temperatur:", 50f, yPosition, sectionPaint)
         yPosition += 15f
 
         val chartBitmap = createChartBitmap(data)
         val chartHeight = 240 
         chartCanvas.drawBitmap(chartBitmap, 50f, yPosition, null)
-        yPosition += chartHeight + 10f
+        yPosition += chartHeight + 20f
+
+        // ROR Chart
+        if (yPosition > 500f) {
+            canvas = startNewPage()
+            yPosition = 50f
+        }
+
+        val rorCanvas = canvas!!
+        rorCanvas.drawText("Grafik ROR (Rate of Rise):", 50f, yPosition, sectionPaint)
+        yPosition += 15f
+
+        val rorBitmap = createRorChartBitmap(data)
+        val rorChartHeight = 120
+        rorCanvas.drawBitmap(rorBitmap, 50f, yPosition, null)
+        yPosition += rorChartHeight + 20f
 
         // Finish the last page
         currentPage?.let { pdfDocument.finishPage(it) }
@@ -381,5 +399,157 @@ class PdfExportManager(private val context: Context) {
         chart.draw(canvas)
 
         return bitmap
+    }
+
+    private fun createRorChartBitmap(data: RoastSessionData): Bitmap {
+        val chartWidth = 480
+        val chartHeight = 120
+
+        val totalSeconds = data.targetDuration * 60
+        val maxIntervals = if (data.intervalSeconds > 0) totalSeconds / data.intervalSeconds else 0
+        val maxX = maxIntervals.toFloat()
+
+        // Build ROR data with interpolation like in RoastingDetailScreen
+        val rorData = buildRorDataForPdf(data)
+
+        val chart = LineChart(context).apply {
+            layoutParams = ViewGroup.LayoutParams(chartWidth, chartHeight)
+            setBackgroundColor(Color.WHITE)
+            description.isEnabled = false
+            legend.isEnabled = false
+            setDrawGridBackground(false)
+            setTouchEnabled(false)
+            setScaleEnabled(false)
+            setPinchZoom(false)
+
+            axisLeft.apply {
+                setDrawGridLines(true)
+                setDrawLabels(true)
+                textColor = Color.BLACK
+                textSize = 8f
+            }
+
+            axisRight.isEnabled = false
+
+            xAxis.apply {
+                position = XAxis.XAxisPosition.BOTTOM
+                setDrawGridLines(false)
+                granularity = 0.1f
+                textColor = Color.BLACK
+                textSize = 7f
+                axisMinimum = 0f
+                axisMaximum = maxX
+                val step = maxOf(1, maxIntervals / 8)
+                setLabelCount((maxIntervals / step) + 1, true)
+                labelRotationAngle = -45f
+                valueFormatter = object : ValueFormatter() {
+                    override fun getFormattedValue(value: Float): String {
+                        return formatTime(value, data.intervalSeconds)
+                    }
+                }
+            }
+        }
+
+        val entries = rorData.mapNotNull { point ->
+            point.ror?.let { Entry(point.intervalNumber, it.toFloat()) }
+        }
+
+        if (entries.isNotEmpty()) {
+            val dataSet = LineDataSet(entries, "ROR").apply {
+                color = "#4CAF50".toColorInt()
+                lineWidth = 2f
+                setDrawCircles(true)
+                setCircleColor("#4CAF50".toColorInt())
+                circleRadius = 2f
+                setDrawValues(false)
+                mode = LineDataSet.Mode.LINEAR
+            }
+
+            chart.data = LineData(dataSet)
+            chart.axisLeft.axisMinimum = entries.minOf { it.y } * 0.9f
+            chart.axisLeft.axisMaximum = entries.maxOf { it.y } * 1.1f
+        }
+
+        chart.measure(
+            View.MeasureSpec.makeMeasureSpec(chartWidth, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(chartHeight, View.MeasureSpec.EXACTLY)
+        )
+        chart.layout(0, 0, chartWidth, chartHeight)
+
+        val bitmap = createBitmap(chartWidth, chartHeight)
+        val canvas = Canvas(bitmap)
+        chart.draw(canvas)
+
+        return bitmap
+    }
+
+    // Build ROR data combining interval data and events with interpolation
+    private fun buildRorDataForPdf(data: RoastSessionData): List<ChartDataPoint> {
+        val interval = data.intervalSeconds
+        val totalSeconds = data.targetDuration * 60
+        val maxIntervals = totalSeconds / interval
+
+        // Build all data points (interval data + events)
+        val allPoints = mutableListOf<Pair<Int, Int>>()
+
+        // Add interval data points
+        data.temperatureData.forEach { point ->
+            point.temperature?.let { temp ->
+                allPoints.add(point.totalSeconds to temp)
+            }
+        }
+
+        // Add event points
+        data.turnPointEvent?.let { allPoints.add(it.seconds to it.temperature) }
+        data.yellowingEvent?.let { allPoints.add(it.seconds to it.temperature) }
+        data.firstCrackEvent?.let { allPoints.add(it.seconds to it.temperature) }
+        data.endRoastEvent?.let { allPoints.add(it.seconds to it.temperature) }
+
+        val sortedPoints = allPoints.sortedBy { it.first }
+
+        // Build positions (intervals only for ROR chart to keep it clean)
+        val positions = (0..maxIntervals).map { i ->
+            i.toFloat() to (i * interval)
+        }
+
+        // Calculate ROR for each position
+        return positions.mapNotNull { (intervalNum, seconds) ->
+            val rorValue = calculateRor(seconds, sortedPoints)
+            rorValue?.let {
+                ChartDataPoint(
+                    intervalNumber = intervalNum,
+                    totalSeconds = seconds,
+                    temperature = getTemperatureAtSeconds(seconds, sortedPoints),
+                    ror = rorValue
+                )
+            }
+        }
+    }
+
+    private fun getTemperatureAtSeconds(seconds: Int, allPoints: List<Pair<Int, Int>>): Int? {
+        if (allPoints.isEmpty()) return null
+
+        allPoints.find { it.first == seconds }?.let { return it.second }
+
+        val before = allPoints.lastOrNull { it.first < seconds }
+        val after = allPoints.firstOrNull { it.first > seconds }
+
+        return when {
+            before != null && after != null -> {
+                val ratio = (seconds - before.first).toFloat() / (after.first - before.first)
+                (before.second + ratio * (after.second - before.second)).toInt()
+            }
+            before != null -> before.second
+            after != null -> after.second
+            else -> null
+        }
+    }
+
+    private fun calculateRor(seconds: Int, allPoints: List<Pair<Int, Int>>): Int? {
+        if (seconds == 0) return 0
+
+        val currentTemp = getTemperatureAtSeconds(seconds, allPoints) ?: return null
+        val prevTemp = allPoints.sortedBy { it.first }.lastOrNull { it.first < seconds }?.second ?: return null
+        return currentTemp - prevTemp
     }
 }

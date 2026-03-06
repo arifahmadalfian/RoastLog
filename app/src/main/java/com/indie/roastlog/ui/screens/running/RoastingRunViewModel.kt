@@ -773,6 +773,7 @@ class RoastingRunViewModel : ViewModel() {
             roastType = setup.roastType,
             intervalSeconds = setup.intervalSeconds.toIntOrNull() ?: 60,
             targetDuration = setup.targetDuration.toIntOrNull() ?: 0,
+            chargeTimeTemp = setup.chargeTimeTemp,
             endTimeTemp = state.endTimeTemp,
             roastTime = state.roastTime,
             devTime = state.devTime,

@@ -53,7 +53,7 @@ fun RoastingDetail(
                 weightIn = s.weightIn,
                 weightOut = s.weightOut,
                 roastType = s.roastType,
-                chargeTimeTemp = "-",
+                chargeTimeTemp = s.chargeTimeTemp,
                 endTimeTemp = s.endTimeTemp,
                 roastTime = s.roastTime,
                 devTime = s.devTime,
@@ -66,6 +66,15 @@ fun RoastingDetail(
                 burnerPower = "-",
                 ror = "-",
                 burnerEvents = s.burnerPlan.map { "${it.temperature} / ${it.time}" },
+                // New fields for plans
+                burnerPlan = s.burnerPlan,
+                airFlowPlan = s.airFlowPlan,
+                rpmPlan = s.rpmPlan,
+                // Event objects for ROR calculation
+                turnPointEvent = s.turnPoint,
+                yellowingEvent = s.yellowing,
+                firstCrackEvent = s.firstCrack,
+                endRoastEvent = s.endRoast,
                 targetDuration = s.targetDuration,
                 intervalSeconds = s.intervalSeconds,
                 startTemperature = 70,
@@ -106,7 +115,7 @@ fun RoastingDetail(
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             InfoItem(label = "Roast Type", value = s.roastType, modifier = Modifier.weight(1f))
                             InfoItem(label = "Berat Masuk", value = "${s.weightIn} gr", modifier = Modifier.weight(1f))
-                            InfoItem(label = "Charge Temp", value = "-°C", modifier = Modifier.weight(1f))
+                            InfoItem(label = "Charge Temp", value = "${s.chargeTimeTemp}°C", modifier = Modifier.weight(1f))
                         }
 
                         HorizontalDivider(thickness = 0.5.dp, modifier = Modifier.padding(vertical = 4.dp))

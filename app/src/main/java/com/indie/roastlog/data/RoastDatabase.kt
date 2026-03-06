@@ -29,6 +29,7 @@ data class RoastSessionEntity(
     val roastType: String,
     val intervalSeconds: Int = 60,
     val targetDuration: Int = 0,
+    val chargeTimeTemp: String,
     // Results
     val endTimeTemp: String,
     val roastTime: String,
@@ -79,7 +80,7 @@ interface RoastDao {
     suspend fun getSessionById(id: Long): RoastSessionEntity?
 }
 
-@Database(entities = [RoastSessionEntity::class], version = 5, exportSchema = false)
+@Database(entities = [RoastSessionEntity::class], version = 6, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class RoastDatabase : RoomDatabase() {
     abstract fun roastDao(): RoastDao

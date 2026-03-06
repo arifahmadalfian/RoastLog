@@ -124,7 +124,16 @@ fun RoastingRunScreen(
             rpmDrum = currentSetup.rpmDrum,
             burnerPower = currentSetup.burnerPower,
             ror = "-",
-            burnerEvents = currentSetup.burnerPlan.map { "${it.temperature.toInt()} / ${it.time}" },
+            burnerEvents = currentSetup.burnerPlan.map { "${it.temperature} / ${it.time}" },
+            // Plans for display
+            burnerPlan = currentSetup.burnerPlan,
+            airFlowPlan = currentSetup.airFlowPlan,
+            rpmPlan = currentSetup.rpmPlan,
+            // Event objects for ROR calculation
+            turnPointEvent = uiState.actualTurnPoint,
+            yellowingEvent = uiState.actualYellowing,
+            firstCrackEvent = uiState.actualFirstCrack,
+            endRoastEvent = uiState.actualEndRoast,
             targetDuration = currentSetup.targetDuration.toIntOrNull() ?: 0,
             intervalSeconds = currentSetup.intervalSeconds.toIntOrNull() ?: 60,
             startTemperature = currentSetup.chargeTimeTemp.toIntOrNull() ?: 70,
