@@ -38,7 +38,8 @@ data class RoastingRunState(
     // Running State
     val elapsedMillis: Long = 0L,
     val isTimerRunning: Boolean = false,
-    val intervalDataList: List<IntervalData> = emptyList(),
+    val intervalDataList: List<IntervalData> = emptyList(), // For chart (regular intervals)
+    val eventMarks: List<RoastingEvent> = emptyList(), // For events at specific times (Turn P, Yellow, etc.)
     val showTemperatureDialog: Boolean = false,
     val currentInterval: Int = 0,
     
@@ -100,9 +101,6 @@ class RoastingRunViewModel : ViewModel() {
         state.intervalDataList.forEach { 
             points.add(it.intervalNumber * intervalSec to it.temperature) 
         }
-        
-        listOfNotNull(state.actualTurnPoint, state.actualYellowing, state.actualFirstCrack, state.actualEndRoast)
-            .forEach { points.add(it.seconds to it.temperature) }
             
         val prevPoint = points.filter { it.first < seconds }.maxByOrNull { it.first }
         
@@ -312,6 +310,7 @@ class RoastingRunViewModel : ViewModel() {
         val totalSeconds = duration * 60
         val maxIntervals = totalSeconds / interval
 
+        // Build regular interval points (0, 1, 2, 3...) - evenly spaced
         val points = (0..maxIntervals).map { intervalNum ->
             val secondsAtThisInterval = intervalNum * interval
             val intervalData = dataMap[intervalNum]
@@ -320,17 +319,19 @@ class RoastingRunViewModel : ViewModel() {
             val rorValue = if (intervalNum > 0 && currentTemp != null && prevTemp != null) currentTemp - prevTemp else null
             
             ChartDataPoint(
-                intervalNumber = intervalNum.toFloat(),
+                intervalNumber = intervalNum.toFloat(), // Even spacing for regular intervals
                 totalSeconds = secondsAtThisInterval,
                 temperature = currentTemp,
                 ror = rorValue
             )
         }.toMutableList()
 
+        // Add event marks at their exact positions (may be between intervals)
         val runningState = _uiState.value
         listOfNotNull(runningState.actualTurnPoint, runningState.actualYellowing, runningState.actualFirstCrack, runningState.actualEndRoast).forEach { ev ->
+            val eventIntervalNum = ev.seconds.toFloat() / interval
             points.add(ChartDataPoint(
-                intervalNumber = ev.seconds.toFloat() / interval,
+                intervalNumber = eventIntervalNum, // Exact position for events
                 totalSeconds = ev.seconds,
                 temperature = ev.temperature,
                 ror = null

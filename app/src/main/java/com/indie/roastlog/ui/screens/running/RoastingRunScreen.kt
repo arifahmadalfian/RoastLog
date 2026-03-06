@@ -49,7 +49,8 @@ data class EventMarkDialogData(
     val title: String,
     val icon: ImageVector,
     val iconColor: Color,
-    val onConfirm: (Int) -> Unit
+    val onConfirm: (Int) -> Unit,
+    val isNonDismissible: Boolean = true
 )
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -200,8 +201,12 @@ fun RoastingRunScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Turn Point
-                Button(
+                EventMarkButton(
+                    title = "Turn P",
+                    icon = Icons.AutoMirrored.Filled.TrendingDown,
+                    iconColor = Color(0xFF2196F3),
+                    containerColor = Color(0xFF2196F3),
+                    enabled = uiState.isTimerRunning,
                     onClick = {
                         eventMarkDialogData = EventMarkDialogData(
                             title = "Turn P",
@@ -213,19 +218,16 @@ fun RoastingRunScreen(
                             }
                         )
                     },
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 4.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
-                    enabled = uiState.isTimerRunning
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 4.dp)) {
-                        Icon(Icons.AutoMirrored.Filled.TrendingDown, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Text("Turn P", style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center, maxLines = 1)
-                    }
-                }
+                    modifier = Modifier.weight(1f)
+                )
 
-                // Yellowing
-                Button(
+                EventMarkButton(
+                    title = "Yellow",
+                    icon = Icons.Default.WbSunny,
+                    iconColor = Color(0xFFFFEB3B),
+                    containerColor = Color(0xFFFFEB3B),
+                    contentColor = Color.Black,
+                    enabled = uiState.isTimerRunning,
                     onClick = {
                         eventMarkDialogData = EventMarkDialogData(
                             title = "Yellow",
@@ -237,19 +239,15 @@ fun RoastingRunScreen(
                             }
                         )
                     },
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 4.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEB3B), contentColor = Color.Black),
-                    enabled = uiState.isTimerRunning
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 4.dp)) {
-                        Icon(Icons.Default.WbSunny, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Text("Yellow", style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center, maxLines = 1)
-                    }
-                }
+                    modifier = Modifier.weight(1f)
+                )
                 
-                // 1st Crack
-                Button(
+                EventMarkButton(
+                    title = "1st Crack",
+                    icon = Icons.Default.Whatshot,
+                    iconColor = Color(0xFFFF9800),
+                    containerColor = Color(0xFFFF9800),
+                    enabled = uiState.isTimerRunning,
                     onClick = {
                         eventMarkDialogData = EventMarkDialogData(
                             title = "1st Crack",
@@ -261,19 +259,15 @@ fun RoastingRunScreen(
                             }
                         )
                     },
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 4.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF9800)),
-                    enabled = uiState.isTimerRunning
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 4.dp)) {
-                        Icon(Icons.Default.Whatshot, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Text("1st Crack", style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center, maxLines = 1)
-                    }
-                }
+                    modifier = Modifier.weight(1f)
+                )
                 
-                // Finish
-                Button(
+                EventMarkButton(
+                    title = "Finish",
+                    icon = Icons.Default.Flag,
+                    iconColor = Color(0xFFF44336),
+                    containerColor = Color(0xFFF44336),
+                    enabled = uiState.isTimerRunning,
                     onClick = {
                         eventMarkDialogData = EventMarkDialogData(
                             title = "Finish",
@@ -285,16 +279,8 @@ fun RoastingRunScreen(
                             }
                         )
                     },
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(horizontal = 4.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336)),
-                    enabled = uiState.isTimerRunning
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 4.dp)) {
-                        Icon(Icons.Default.Flag, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Text("Finish", style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center, maxLines = 1)
-                    }
-                }
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             val chartData = viewModel.getChartData()
@@ -358,55 +344,14 @@ fun RoastingRunScreen(
             }
         }
 
-        // Event Mark Dialog (Turn P, Yellow, 1st Crack, Finish)
+        // Event Mark Dialog (Turn P, Yellow, 1st Crack, Finish) - menggunakan TemperatureInputDialog
         eventMarkDialogData?.let { data ->
-            val focusRequester = remember { FocusRequester() }
-            val keyboardController = LocalSoftwareKeyboardController.current
-            var input by remember { mutableStateOf("") }
-            
-            AlertDialog(
-                onDismissRequest = { /* Not closable */ },
-                properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
-                icon = { Icon(data.icon, contentDescription = null, tint = data.iconColor, modifier = Modifier.size(32.dp)) },
-                title = { Text(data.title) },
-                text = {
-                    Column {
-                        OutlinedTextField(
-                            value = input,
-                            onValueChange = { input = it.filter { char -> char.isDigit() || char == '.' } },
-                            label = { Text("Suhu (°C)") },
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Number,
-                                imeAction = ImeAction.Done
-                            ),
-                            keyboardActions = KeyboardActions(
-                                onDone = {
-                                    if (input.isNotEmpty()) {
-                                        input.toIntOrNull()?.let { data.onConfirm(it) }
-                                    }
-                                }
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusRequester)
-                        )
-                        LaunchedEffect(Unit) {
-                            delay(300) // Memberikan waktu dialog muncul sepenuhnya
-                            focusRequester.requestFocus()
-                            keyboardController?.show()
-                        }
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = { 
-                            input.toIntOrNull()?.let { data.onConfirm(it) }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = input.isNotEmpty()
-                    ) {
-                        Text("Submit")
-                    }
+            TemperatureInputDialog(
+                eventMarkData = data,
+                onDismiss = { eventMarkDialogData = null },
+                onConfirm = { 
+                    data.onConfirm(it)
+                    eventMarkDialogData = null
                 }
             )
         }
@@ -699,10 +644,11 @@ private fun formatRunTime(totalMillis: Long): String {
 
 @Composable
 fun TemperatureInputDialog(
-    intervalNumber: Int,
-    elapsedTime: String,
-    voiceState: VoiceRecognitionState,
-    onVoiceClick: () -> Unit,
+    intervalNumber: Int? = null,
+    elapsedTime: String? = null,
+    eventMarkData: EventMarkDialogData? = null,
+    voiceState: VoiceRecognitionState = VoiceRecognitionState.Idle,
+    onVoiceClick: () -> Unit = {},
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit
 ) {
@@ -715,26 +661,45 @@ fun TemperatureInputDialog(
             input = voiceState.number.toString()
         }
     }
+
+    // Determine if this is event mark mode or interval mode
+    val isEventMarkMode = eventMarkData != null
     
     AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Input Suhu #$intervalNumber ($elapsedTime)") },
+        onDismissRequest = { if (!isEventMarkMode) onDismiss() },
+        properties = if (isEventMarkMode) {
+            DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+        } else {
+            DialogProperties()
+        },
+        icon = eventMarkData?.let { 
+            { Icon(it.icon, contentDescription = null, tint = it.iconColor, modifier = Modifier.size(32.dp)) }
+        },
+        title = { 
+            if (isEventMarkMode) {
+                Text(eventMarkData.title)
+            } else {
+                Text("Input Suhu #$intervalNumber (${elapsedTime ?: ""})")
+            }
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = input,
                     onValueChange = { input = it.filter { char -> char.isDigit() || char == '.' } },
                     label = { Text("Suhu (°C)") },
-                    trailingIcon = {
-                        IconButton(onClick = onVoiceClick) {
-                            Icon(
-                                imageVector = Icons.Default.Mic,
-                                contentDescription = "Voice Input",
-                                tint = if (voiceState is VoiceRecognitionState.Listening) 
-                                    MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                    trailingIcon = if (!isEventMarkMode) {
+                        {
+                            IconButton(onClick = onVoiceClick) {
+                                Icon(
+                                    imageVector = Icons.Default.Mic,
+                                    contentDescription = "Voice Input",
+                                    tint = if (voiceState is VoiceRecognitionState.Listening) 
+                                        MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
-                    },
+                    } else null,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,
                         imeAction = ImeAction.Done
@@ -752,24 +717,58 @@ fun TemperatureInputDialog(
                 )
                 
                 LaunchedEffect(Unit) {
-                    delay(300) // Pastikan dialog sudah muncul sepenuhnya
+                    delay(300)
                     focusRequester.requestFocus()
                     keyboardController?.show()
                 }
 
-                if (voiceState is VoiceRecognitionState.Listening) {
-                    Text("Mendengarkan...", color = MaterialTheme.colorScheme.primary)
-                }
-                if (voiceState is VoiceRecognitionState.Error) {
-                    Text(voiceState.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                if (!isEventMarkMode) {
+                    if (voiceState is VoiceRecognitionState.Listening) {
+                        Text("Mendengarkan...", color = MaterialTheme.colorScheme.primary)
+                    }
+                    if (voiceState is VoiceRecognitionState.Error) {
+                        Text(voiceState.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             }
         },
         confirmButton = {
             Button(
                 onClick = { input.toIntOrNull()?.let { onConfirm(it) } },
+                modifier = if (isEventMarkMode) Modifier.fillMaxWidth() else Modifier,
                 enabled = input.isNotEmpty()
             ) { Text("Submit") }
-        }
+        },
+        dismissButton = if (!isEventMarkMode) {
+            { TextButton(onClick = onDismiss) { Text("Batal") } }
+        } else null
     )
+}
+
+@Composable
+fun EventMarkButton(
+    title: String,
+    icon: ImageVector,
+    iconColor: Color,
+    containerColor: Color,
+    contentColor: Color = Color.Unspecified,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 4.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = containerColor.copy(alpha = if (enabled) 0.5f else 0.1f),
+            contentColor = if (contentColor != Color.Unspecified) contentColor else LocalContentColor.current
+        ),
+        enabled = enabled
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(vertical = 4.dp)) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = iconColor)
+            Text(title, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center, maxLines = 1)
+        }
+    }
 }

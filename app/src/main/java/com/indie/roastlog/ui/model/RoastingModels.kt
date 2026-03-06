@@ -8,7 +8,8 @@ data class IntervalData(
     val temperature: Int,
     val airFlowPower: String = "",
     val rpmDrum: String = "",
-    val burnerPower: String = ""
+    val burnerPower: String = "",
+    val actualSeconds: Int = intervalNumber * 60 // Default to interval boundary, but can be set to exact time
 )
 
 @Serializable
