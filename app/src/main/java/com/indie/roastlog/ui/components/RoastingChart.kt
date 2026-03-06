@@ -242,8 +242,12 @@ private fun LineChart.setupHorizontalChart() {
     xAxis.apply {
         position = XAxis.XAxisPosition.BOTTOM
         setDrawGridLines(true)
+        gridColor = Color.TRANSPARENT
+        setDrawAxisLine(true)
+        axisLineColor = Color.TRANSPARENT
+        setDrawLabels(true)
+        textColor = Color.TRANSPARENT
         granularity = 0.1f
-        textColor = Color.BLACK
         textSize = 11f
         axisMinimum = 0f
         labelRotationAngle = -45f
@@ -251,9 +255,13 @@ private fun LineChart.setupHorizontalChart() {
 
     axisLeft.apply {
         setDrawGridLines(true)
+        gridColor = Color.TRANSPARENT
+        setDrawAxisLine(true)
+        axisLineColor = Color.TRANSPARENT
+        setDrawLabels(true)
+        textColor = Color.TRANSPARENT
         axisMinimum = 239f
         axisMaximum = 241f
-        textColor = Color.BLACK
         textSize = 12f
         labelCount = 1
     }
@@ -279,7 +287,7 @@ private fun LineChart.setRorData(data: List<ChartDataPoint>) {
         lineWidth = 0f
         setDrawCircles(true)
         setCircleColor("#4CAF50".toColorInt())
-        circleRadius = 5f
+        circleRadius = 2f
         setDrawCircleHole(false)
         mode = LineDataSet.Mode.LINEAR
         setDrawValues(true)
@@ -316,7 +324,7 @@ private fun LineChart.setAirFlowData(data: List<ChartDataPoint>) {
         lineWidth = 0f
         setDrawCircles(true)
         setCircleColor("#2196F3".toColorInt())
-        circleRadius = 5f
+        circleRadius = 2f
         setDrawCircleHole(false)
         mode = LineDataSet.Mode.LINEAR
         setDrawValues(true)
@@ -353,7 +361,7 @@ private fun LineChart.setRpmData(data: List<ChartDataPoint>) {
         lineWidth = 0f
         setDrawCircles(true)
         setCircleColor("#FF9800".toColorInt())
-        circleRadius = 5f
+        circleRadius = 2f
         setDrawCircleHole(false)
         mode = LineDataSet.Mode.LINEAR
         setDrawValues(true)
@@ -390,7 +398,7 @@ private fun LineChart.setBurnerData(data: List<ChartDataPoint>) {
         lineWidth = 0f
         setDrawCircles(true)
         setCircleColor("#F44336".toColorInt())
-        circleRadius = 5f
+        circleRadius = 2f
         setDrawCircleHole(false)
         mode = LineDataSet.Mode.LINEAR
         setDrawValues(true)
