@@ -1,5 +1,6 @@
 package com.indie.roastlog.ui.screens.running
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -37,6 +38,10 @@ import com.indie.roastlog.pdf.RoastSessionData
 import com.indie.roastlog.speech.VoiceRecognitionState
 import com.indie.roastlog.speech.VoiceRecognizerManager
 import com.indie.roastlog.ui.components.RoastingChart
+import com.indie.roastlog.ui.components.RoastingChartRor
+import com.indie.roastlog.ui.components.RoastingChartAirFlow
+import com.indie.roastlog.ui.components.RoastingChartRpm
+import com.indie.roastlog.ui.components.RoastingChartBurner
 import com.indie.roastlog.ui.components.ScaffoldCustom
 import com.indie.roastlog.ui.components.SmallOutlinedTextField
 import com.indie.roastlog.ui.screens.form.RoastingFormState
@@ -110,6 +115,8 @@ fun RoastingRunScreen(
         )
         pdfManager.exportRoastSessionToPdf(roastData)
     }
+
+    val scrollState = rememberScrollState()
 
     ScaffoldCustom(
         title = "Roasting: ${uiState.setupData.beanType}",
@@ -282,18 +289,67 @@ fun RoastingRunScreen(
                     modifier = Modifier.weight(1f)
                 )
             }
+            
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(scrollState)
+            ) {
+                val chartData = viewModel.getChartData()
+                val chartRor = viewModel.getChartRor()
+                val chartAirFlow = viewModel.getChartAirFlow()
+                val chartRpm = viewModel.getChartRpm()
+                val chartBurner = viewModel.getChartBurner()
+                val intervalSeconds = uiState.setupData.intervalSeconds.toIntOrNull() ?: 60
 
-            val chartData = viewModel.getChartData()
-            val intervalSeconds = uiState.setupData.intervalSeconds.toIntOrNull() ?: 60
-            if (chartData.isNotEmpty()) {
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    RoastingChart(
-                        data = chartData,
+                if (chartData.isNotEmpty()) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        RoastingChart(
+                            data = chartData,
+                            intervalSeconds = intervalSeconds,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+
+                // ROR chart
+                if (chartRor.isNotEmpty()) {
+                    RoastingChartRor(
+                        data = chartRor,
+                        intervalSeconds = intervalSeconds,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                // Air Flow chart
+                if (chartAirFlow.isNotEmpty()) {
+                    RoastingChartAirFlow(
+                        data = chartAirFlow,
+                        intervalSeconds = intervalSeconds,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                // RPM chart
+                if (chartRpm.isNotEmpty()) {
+                    RoastingChartRpm(
+                        data = chartRpm,
+                        intervalSeconds = intervalSeconds,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                // Burner chart
+                if (chartBurner.isNotEmpty()) {
+                    RoastingChartBurner(
+                        data = chartBurner,
                         intervalSeconds = intervalSeconds,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
+
+            
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(

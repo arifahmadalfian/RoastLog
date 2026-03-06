@@ -368,6 +368,110 @@ class RoastingRunViewModel : ViewModel() {
         return points.sortedBy { it.totalSeconds }
     }
 
+    fun getChartRor(): List<ChartDataPoint> {
+        val state = _uiState.value.setupData
+        val duration = state.targetDuration.toIntOrNull() ?: return emptyList()
+        val interval = state.intervalSeconds.toIntOrNull() ?: 60
+        if (duration <= 0 || interval <= 0) return emptyList()
+
+        val dataMap = _uiState.value.intervalDataList.associateBy { it.intervalNumber }
+        val totalSeconds = duration * 60
+        val maxIntervals = totalSeconds / interval
+
+        return (0..maxIntervals).map { intervalNum ->
+            val secondsAtThisInterval = intervalNum * interval
+            val intervalData = dataMap[intervalNum]
+            val currentTemp = intervalData?.temperature
+            val prevTemp = if (intervalNum > 0) dataMap[intervalNum - 1]?.temperature else null
+            val rorValue = if (intervalNum > 0 && currentTemp != null && prevTemp != null) currentTemp - prevTemp else null
+
+            ChartDataPoint(
+                intervalNumber = intervalNum.toFloat(),
+                totalSeconds = secondsAtThisInterval,
+                temperature = null,
+                ror = rorValue,
+                airFlowPower = "",
+                rpmDrum = "",
+                burnerPower = ""
+            )
+        }
+    }
+
+    fun getChartAirFlow(): List<ChartDataPoint> {
+        val state = _uiState.value.setupData
+        val duration = state.targetDuration.toIntOrNull() ?: return emptyList()
+        val interval = state.intervalSeconds.toIntOrNull() ?: 60
+        if (duration <= 0 || interval <= 0) return emptyList()
+
+        val totalSeconds = duration * 60
+        val maxIntervals = totalSeconds / interval
+
+        return (0..maxIntervals).map { intervalNum ->
+            val secondsAtThisInterval = intervalNum * interval
+            val airFlowEvent = state.airFlowPlan.find { it.seconds == secondsAtThisInterval }
+
+            ChartDataPoint(
+                intervalNumber = intervalNum.toFloat(),
+                totalSeconds = secondsAtThisInterval,
+                temperature = null,
+                ror = null,
+                airFlowPower = airFlowEvent?.temperature?.toString() ?: "",
+                rpmDrum = "",
+                burnerPower = ""
+            )
+        }
+    }
+
+    fun getChartRpm(): List<ChartDataPoint> {
+        val state = _uiState.value.setupData
+        val duration = state.targetDuration.toIntOrNull() ?: return emptyList()
+        val interval = state.intervalSeconds.toIntOrNull() ?: 60
+        if (duration <= 0 || interval <= 0) return emptyList()
+
+        val totalSeconds = duration * 60
+        val maxIntervals = totalSeconds / interval
+
+        return (0..maxIntervals).map { intervalNum ->
+            val secondsAtThisInterval = intervalNum * interval
+            val rpmEvent = state.rpmPlan.find { it.seconds == secondsAtThisInterval }
+
+            ChartDataPoint(
+                intervalNumber = intervalNum.toFloat(),
+                totalSeconds = secondsAtThisInterval,
+                temperature = null,
+                ror = null,
+                airFlowPower = "",
+                rpmDrum = rpmEvent?.temperature?.toString() ?: "",
+                burnerPower = ""
+            )
+        }
+    }
+
+    fun getChartBurner(): List<ChartDataPoint> {
+        val state = _uiState.value.setupData
+        val duration = state.targetDuration.toIntOrNull() ?: return emptyList()
+        val interval = state.intervalSeconds.toIntOrNull() ?: 60
+        if (duration <= 0 || interval <= 0) return emptyList()
+
+        val totalSeconds = duration * 60
+        val maxIntervals = totalSeconds / interval
+
+        return (0..maxIntervals).map { intervalNum ->
+            val secondsAtThisInterval = intervalNum * interval
+            val burnerEvent = state.burnerPlan.find { it.seconds == secondsAtThisInterval }
+
+            ChartDataPoint(
+                intervalNumber = intervalNum.toFloat(),
+                totalSeconds = secondsAtThisInterval,
+                temperature = null,
+                ror = null,
+                airFlowPower = "",
+                rpmDrum = "",
+                burnerPower = burnerEvent?.temperature?.toString() ?: ""
+            )
+        }
+    }
+
     fun saveToDatabase(context: Context) {
         val state = _uiState.value
         val setup = state.setupData

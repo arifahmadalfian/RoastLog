@@ -1,8 +1,6 @@
 package com.indie.roastlog.ui.components
 
 import android.graphics.Color
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -10,13 +8,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color as ComposeColor
-import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -46,15 +40,12 @@ fun RoastingChart(
     intervalSeconds: Int,
     modifier: Modifier = Modifier
 ) {
-    val scrollState = rememberScrollState()
-
     Column(
-        modifier = modifier.height(600.dp)
+        modifier = modifier.height(300.dp)
     ) {
         // Chart area
         Box(
             modifier = Modifier
-                .horizontalScroll(scrollState)
                 .fillMaxWidth()
                 .weight(1f)
         ) {
@@ -79,143 +70,335 @@ fun RoastingChart(
             )
         }
 
-        // ROR, Air Flow, RPM, Burner labels row - aligned with chart
+        // Chart area only - no ROR/AirFlow/RPM/Burner here anymore
+    }
+}
+
+@Composable
+fun RoastingChartRor(
+    data: List<ChartDataPoint>,
+    intervalSeconds: Int,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(top = 8.dp, bottom = 4.dp)
+    ) {
+        Text(
+            text = "ROR (kenaikan suhu bean per menit)",
+            fontSize = 10.sp,
+            modifier = Modifier.padding(start = 4.dp)
+        )
         Box(
-            modifier = Modifier
-                .horizontalScroll(scrollState)
-                .fillMaxWidth()
+            modifier = Modifier.fillMaxWidth()
         ) {
-            val columnWidth = 30f // Same as chart's column width
-            val textColor = ComposeColor(MaterialTheme.colorScheme.onSurface.hashCode())
-
-            Column(
-                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-            ) {
-                // ROR Row Label
-                Text(
-                    text = "ROR (kenaikan suhu bean per menit)",
-                    fontSize = 10.sp,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
-                // ROR Row Canvas
-                Canvas(
-                    modifier = Modifier
-                        .width(maxOf(300, data.size * 30).dp)
-                        .height(20.dp)
-                ) {
-                    val paint = android.graphics.Paint().apply {
-                        color = textColor.hashCode()
-                        textSize = 10.sp.toPx()
-                        textAlign = android.graphics.Paint.Align.CENTER
+            val chartWidth = maxOf(300, data.size * 30)
+            AndroidView(
+                factory = { context ->
+                    LineChart(context).apply {
+                        setupHorizontalChart()
+                        setRorData(data)
+                        invalidate()
                     }
-                    
-                    data.forEach { point ->
-                        val x = (point.intervalNumber * columnWidth) + (columnWidth / 2)
-                        val rorText = when {
-                            point.ror == null -> "-"
-                            else -> point.ror.toString()
-                        }
-                        drawContext.canvas.nativeCanvas.drawText(
-                            rorText,
-                            x,
-                            14f, // baseline y position
-                            paint
-                        )
-                    }
-                }
-
-                // Air Flow Power Row Label
-                Text(
-                    text = "Air Flow Power (besaran buangan asap)",
-                    fontSize = 10.sp,
-                    modifier = Modifier.padding(start = 4.dp, top = 8.dp)
-                )
-                // Air Flow Power Row Canvas
-                Canvas(
-                    modifier = Modifier
-                        .width(maxOf(300, data.size * 30).dp)
-                        .height(20.dp)
-                ) {
-                    val paint = android.graphics.Paint().apply {
-                        color = textColor.hashCode()
-                        textSize = 10.sp.toPx()
-                        textAlign = android.graphics.Paint.Align.CENTER
-                    }
-                    
-                    data.forEach { point ->
-                        val x = (point.intervalNumber * columnWidth) + (columnWidth / 2)
-                        val airFlowText = point.airFlowPower.ifEmpty { "-" }
-                        drawContext.canvas.nativeCanvas.drawText(
-                            airFlowText,
-                            x,
-                            14f,
-                            paint
-                        )
-                    }
-                }
-
-                // RPM Drum Row Label
-                Text(
-                    text = "RPM Drum (kecepatan putaran drum)",
-                    fontSize = 10.sp,
-                    modifier = Modifier.padding(start = 4.dp, top = 8.dp)
-                )
-                // RPM Drum Row Canvas
-                Canvas(
-                    modifier = Modifier
-                        .width(maxOf(300, data.size * 30).dp)
-                        .height(20.dp)
-                ) {
-                    val paint = android.graphics.Paint().apply {
-                        color = textColor.hashCode()
-                        textSize = 10.sp.toPx()
-                        textAlign = android.graphics.Paint.Align.CENTER
-                    }
-                    
-                    data.forEach { point ->
-                        val x = (point.intervalNumber * columnWidth) + (columnWidth / 2)
-                        val rpmText = point.rpmDrum.ifEmpty { "-" }
-                        drawContext.canvas.nativeCanvas.drawText(
-                            rpmText,
-                            x,
-                            14f,
-                            paint
-                        )
-                    }
-                }
-
-                // Burner Power Row Label
-                Text(
-                    text = "Burner Power (besaran tekanan api)",
-                    fontSize = 10.sp,
-                    modifier = Modifier.padding(start = 4.dp, top = 8.dp)
-                )
-                // Burner Power Row Canvas
-                Canvas(
-                    modifier = Modifier
-                        .width(maxOf(300, data.size * 30).dp)
-                        .height(20.dp)
-                ) {
-                    val paint = android.graphics.Paint().apply {
-                        color = textColor.hashCode()
-                        textSize = 10.sp.toPx()
-                        textAlign = android.graphics.Paint.Align.CENTER
-                    }
-                    
-                    data.forEach { point ->
-                        val x = (point.intervalNumber * columnWidth) + (columnWidth / 2)
-                        val burnerText = point.burnerPower.ifEmpty { "-" }
-                        drawContext.canvas.nativeCanvas.drawText(
-                            burnerText,
-                            x,
-                            14f,
-                            paint
-                        )
-                    }
-                }
-            }
+                },
+                update = { chart ->
+                    chart.setRorData(data)
+                    chart.invalidate()
+                },
+                modifier = Modifier
+                    .width(chartWidth.dp)
+                    .height(40.dp)
+            )
         }
     }
+}
+
+@Composable
+fun RoastingChartAirFlow(
+    data: List<ChartDataPoint>,
+    intervalSeconds: Int,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(top = 8.dp, bottom = 4.dp)
+    ) {
+        Text(
+            text = "Air Flow Power (besaran buangan asap)",
+            fontSize = 10.sp,
+            modifier = Modifier.padding(start = 4.dp)
+        )
+        Box(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            val chartWidth = maxOf(300, data.size * 30)
+            AndroidView(
+                factory = { context ->
+                    LineChart(context).apply {
+                        setupHorizontalChart()
+                        setAirFlowData(data)
+                        invalidate()
+                    }
+                },
+                update = { chart ->
+                    chart.setAirFlowData(data)
+                    chart.invalidate()
+                },
+                modifier = Modifier
+                    .width(chartWidth.dp)
+                    .height(40.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun RoastingChartRpm(
+    data: List<ChartDataPoint>,
+    intervalSeconds: Int,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(top = 8.dp, bottom = 4.dp)
+    ) {
+        Text(
+            text = "RPM Drum (kecepatan putaran drum)",
+            fontSize = 10.sp,
+            modifier = Modifier.padding(start = 4.dp)
+        )
+        Box(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            val chartWidth = maxOf(300, data.size * 30)
+            AndroidView(
+                factory = { context ->
+                    LineChart(context).apply {
+                        setupHorizontalChart()
+                        setRpmData(data)
+                        invalidate()
+                    }
+                },
+                update = { chart ->
+                    chart.setRpmData(data)
+                    chart.invalidate()
+                },
+                modifier = Modifier
+                    .width(chartWidth.dp)
+                    .height(40.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun RoastingChartBurner(
+    data: List<ChartDataPoint>,
+    intervalSeconds: Int,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(top = 8.dp, bottom = 4.dp)
+    ) {
+        Text(
+            text = "Burner Power (besaran tekanan api)",
+            fontSize = 10.sp,
+            modifier = Modifier.padding(start = 4.dp)
+        )
+        Box(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            val chartWidth = maxOf(300, data.size * 30)
+            AndroidView(
+                factory = { context ->
+                    LineChart(context).apply {
+                        setupHorizontalChart()
+                        setBurnerData(data)
+                        invalidate()
+                    }
+                },
+                update = { chart ->
+                    chart.setBurnerData(data)
+                    chart.invalidate()
+                },
+                modifier = Modifier
+                    .width(chartWidth.dp)
+                    .height(40.dp)
+            )
+        }
+    }
+}
+
+private fun LineChart.setupHorizontalChart() {
+    description.isEnabled = false
+    legend.isEnabled = false
+    setTouchEnabled(false)
+    setScaleEnabled(false)
+    setPinchZoom(false)
+    setDrawGridBackground(false)
+    setBackgroundColor(Color.TRANSPARENT)
+
+    xAxis.apply {
+        isEnabled = false
+        setDrawGridLines(false)
+        setDrawLabels(false)
+        setDrawAxisLine(false)
+    }
+
+    axisLeft.apply {
+        isEnabled = false
+        setDrawGridLines(false)
+        setDrawLabels(false)
+        setDrawAxisLine(false)
+        axisMinimum = 0f
+        axisMaximum = 1f
+    }
+
+    axisRight.isEnabled = false
+}
+
+private fun LineChart.setRorData(data: List<ChartDataPoint>) {
+    if (data.isEmpty()) {
+        clear()
+        return
+    }
+
+    val maxX = data.maxOf { it.intervalNumber }
+    xAxis.axisMaximum = maxX
+
+    val entries = data.mapNotNull { point ->
+        point.ror?.let { Entry(point.intervalNumber, 0.5f, it.toString()) }
+    }
+
+    val dataSet = LineDataSet(entries, "ROR").apply {
+        color = "#4CAF50".toColorInt()
+        lineWidth = 0f
+        setDrawCircles(true)
+        setCircleColor("#4CAF50".toColorInt())
+        circleRadius = 2f
+        setDrawCircleHole(false)
+        mode = LineDataSet.Mode.LINEAR
+        setDrawValues(true)
+        valueTextSize = 10f
+        valueTextColor = Color.BLACK
+        valueFormatter = object : ValueFormatter() {
+            override fun getPointLabel(entry: Entry?): String {
+                return entry?.data?.toString() ?: "-"
+            }
+        }
+        setDrawHorizontalHighlightIndicator(false)
+        setDrawVerticalHighlightIndicator(false)
+    }
+
+    this.data = if (entries.isEmpty()) null else LineData(dataSet)
+}
+
+private fun LineChart.setAirFlowData(data: List<ChartDataPoint>) {
+    if (data.isEmpty()) {
+        clear()
+        return
+    }
+
+    val maxX = data.maxOf { it.intervalNumber }
+    xAxis.axisMaximum = maxX
+
+    val entries = data.map { point ->
+        val displayValue = point.airFlowPower.ifEmpty { "-" }
+        Entry(point.intervalNumber, 0.5f, displayValue)
+    }
+
+    val dataSet = LineDataSet(entries, "AirFlow").apply {
+        color = "#2196F3".toColorInt()
+        lineWidth = 0f
+        setDrawCircles(true)
+        setCircleColor("#2196F3".toColorInt())
+        circleRadius = 2f
+        setDrawCircleHole(false)
+        mode = LineDataSet.Mode.LINEAR
+        setDrawValues(true)
+        valueTextSize = 10f
+        valueTextColor = Color.BLACK
+        valueFormatter = object : ValueFormatter() {
+            override fun getPointLabel(entry: Entry?): String {
+                return entry?.data?.toString() ?: "-"
+            }
+        }
+        setDrawHorizontalHighlightIndicator(false)
+        setDrawVerticalHighlightIndicator(false)
+    }
+
+    this.data = if (entries.isEmpty()) null else LineData(dataSet)
+}
+
+private fun LineChart.setRpmData(data: List<ChartDataPoint>) {
+    if (data.isEmpty()) {
+        clear()
+        return
+    }
+
+    val maxX = data.maxOf { it.intervalNumber }
+    xAxis.axisMaximum = maxX
+
+    val entries = data.map { point ->
+        val displayValue = point.rpmDrum.ifEmpty { "-" }
+        Entry(point.intervalNumber, 0.5f, displayValue)
+    }
+
+    val dataSet = LineDataSet(entries, "RPM").apply {
+        color = "#FF9800".toColorInt()
+        lineWidth = 0f
+        setDrawCircles(true)
+        setCircleColor("#FF9800".toColorInt())
+        circleRadius = 2f
+        setDrawCircleHole(false)
+        mode = LineDataSet.Mode.LINEAR
+        setDrawValues(true)
+        valueTextSize = 10f
+        valueTextColor = Color.BLACK
+        valueFormatter = object : ValueFormatter() {
+            override fun getPointLabel(entry: Entry?): String {
+                return entry?.data?.toString() ?: "-"
+            }
+        }
+        setDrawHorizontalHighlightIndicator(false)
+        setDrawVerticalHighlightIndicator(false)
+    }
+
+    this.data = if (entries.isEmpty()) null else LineData(dataSet)
+}
+
+private fun LineChart.setBurnerData(data: List<ChartDataPoint>) {
+    if (data.isEmpty()) {
+        clear()
+        return
+    }
+
+    val maxX = data.maxOf { it.intervalNumber }
+    xAxis.axisMaximum = maxX
+
+    val entries = data.map { point ->
+        val displayValue = point.burnerPower.ifEmpty { "-" }
+        Entry(point.intervalNumber, 0.5f, displayValue)
+    }
+
+    val dataSet = LineDataSet(entries, "Burner").apply {
+        color = "#F44336".toColorInt()
+        lineWidth = 0f
+        setDrawCircles(true)
+        setCircleColor("#F44336".toColorInt())
+        circleRadius = 2f
+        setDrawCircleHole(false)
+        mode = LineDataSet.Mode.LINEAR
+        setDrawValues(true)
+        valueTextSize = 10f
+        valueTextColor = Color.BLACK
+        valueFormatter = object : ValueFormatter() {
+            override fun getPointLabel(entry: Entry?): String {
+                return entry?.data?.toString() ?: "-"
+            }
+        }
+        setDrawHorizontalHighlightIndicator(false)
+        setDrawVerticalHighlightIndicator(false)
+    }
+
+    this.data = if (entries.isEmpty()) null else LineData(dataSet)
 }
 
 private fun LineChart.setupChart() {
@@ -271,7 +454,7 @@ private fun LineChart.setData(data: List<ChartDataPoint>, intervalSeconds: Int) 
         lineWidth = 2f
         setDrawCircles(true)
         setCircleColor("#2196F3".toColorInt())
-        circleRadius = 5f
+        circleRadius = 3f
         setDrawCircleHole(false)
         mode = LineDataSet.Mode.LINEAR
         setDrawValues(false)
