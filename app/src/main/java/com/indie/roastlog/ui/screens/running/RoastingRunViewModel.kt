@@ -50,16 +50,19 @@ data class RoastingRunState(
     val showBurnerDialog: Boolean = false,
     val pendingBurnerIndex: Int = -1,
     val currentBurnerIndex: Int = -1,
+    val confirmedBurnerIndex: Int = -1,  // Track which burner events have been confirmed
     
     // Air Flow Dialog
     val showAirFlowDialog: Boolean = false,
     val pendingAirFlowIndex: Int = -1,
     val currentAirFlowIndex: Int = -1,
+    val confirmedAirFlowIndex: Int = -1,  // Track which air flow events have been confirmed
     
     // RPM Dialog  
     val showRpmDialog: Boolean = false,
     val pendingRpmIndex: Int = -1,
-    val currentRpmIndex: Int = -1
+    val currentRpmIndex: Int = -1,
+    val confirmedRpmIndex: Int = -1  // Track which RPM events have been confirmed
 )
 
 class RoastingRunViewModel : ViewModel() {
@@ -274,17 +277,20 @@ class RoastingRunViewModel : ViewModel() {
     fun resetTimer() {
         stopTimer()
         lastInterval = 0
-        _uiState.update { 
+        _uiState.update {
             it.copy(
-                elapsedMillis = 0L, 
-                intervalDataList = emptyList(), 
-                pendingBurnerIndex = -1, 
+                elapsedMillis = 0L,
+                intervalDataList = emptyList(),
+                pendingBurnerIndex = -1,
                 currentBurnerIndex = -1,
+                confirmedBurnerIndex = -1,
                 pendingAirFlowIndex = -1,
                 currentAirFlowIndex = -1,
+                confirmedAirFlowIndex = -1,
                 pendingRpmIndex = -1,
-                currentRpmIndex = -1
-            ) 
+                currentRpmIndex = -1,
+                confirmedRpmIndex = -1
+            )
         }
     }
 
@@ -320,15 +326,30 @@ class RoastingRunViewModel : ViewModel() {
     }
 
     fun dismissBurnerDialog() {
-        _uiState.update { it.copy(showBurnerDialog = false) }
+        _uiState.update { 
+            it.copy(
+                showBurnerDialog = false,
+                confirmedBurnerIndex = it.currentBurnerIndex  // Confirm this event
+            ) 
+        }
     }
 
     fun dismissAirFlowDialog() {
-        _uiState.update { it.copy(showAirFlowDialog = false) }
+        _uiState.update { 
+            it.copy(
+                showAirFlowDialog = false,
+                confirmedAirFlowIndex = it.currentAirFlowIndex  // Confirm this event
+            ) 
+        }
     }
 
     fun dismissRpmDialog() {
-        _uiState.update { it.copy(showRpmDialog = false) }
+        _uiState.update { 
+            it.copy(
+                showRpmDialog = false,
+                confirmedRpmIndex = it.currentRpmIndex  // Confirm this event
+            ) 
+        }
     }
 
     fun addTemperature(temperature: Int) {
@@ -566,7 +587,7 @@ class RoastingRunViewModel : ViewModel() {
 
         return positions.map { (intervalNum, seconds) ->
             // Find the last event that has been reached (based on dialog being shown)
-            val applicableValue = getValueAtTimeFromPlan(sortedPlan, seconds, runningState.currentAirFlowIndex)
+            val applicableValue = getValueAtTimeFromPlan(sortedPlan, seconds, runningState.confirmedAirFlowIndex)
 
             ChartDataPoint(
                 intervalNumber = intervalNum,
@@ -589,7 +610,7 @@ class RoastingRunViewModel : ViewModel() {
         val sortedPlan = state.rpmPlan.sortedBy { it.seconds }
 
         return positions.map { (intervalNum, seconds) ->
-            val applicableValue = getValueAtTimeFromPlan(sortedPlan, seconds, runningState.currentRpmIndex)
+            val applicableValue = getValueAtTimeFromPlan(sortedPlan, seconds, runningState.confirmedRpmIndex)
 
             ChartDataPoint(
                 intervalNumber = intervalNum,
@@ -612,7 +633,7 @@ class RoastingRunViewModel : ViewModel() {
         val sortedPlan = state.burnerPlan.sortedBy { it.seconds }
 
         return positions.map { (intervalNum, seconds) ->
-            val applicableValue = getValueAtTimeFromPlan(sortedPlan, seconds, runningState.currentBurnerIndex)
+            val applicableValue = getValueAtTimeFromPlan(sortedPlan, seconds, runningState.confirmedBurnerIndex)
 
             ChartDataPoint(
                 intervalNumber = intervalNum,
@@ -626,15 +647,15 @@ class RoastingRunViewModel : ViewModel() {
         }
     }
 
-    private fun getValueAtTimeFromPlan(sortedPlan: List<RoastingEvent>, seconds: Int, currentIndex: Int): Int? {
-        // No events passed yet, return null (empty value)
-        if (currentIndex < 0 || sortedPlan.isEmpty()) return null
+    private fun getValueAtTimeFromPlan(sortedPlan: List<RoastingEvent>, seconds: Int, confirmedIndex: Int): Int? {
+        // No events confirmed yet, return null (empty value)
+        if (confirmedIndex < 0 || sortedPlan.isEmpty()) return null
+
+        // Only show value at exact plan event times that have been confirmed
+        val confirmedEvents = sortedPlan.take(confirmedIndex + 1)
+        val exactMatch = confirmedEvents.find { it.seconds == seconds }
         
-        // Find the applicable value based on current progress
-        // currentIndex indicates which dialog has been shown (0-indexed)
-        val applicableEvents = sortedPlan.take(currentIndex + 1).filter { it.seconds <= seconds }
-        
-        return applicableEvents.lastOrNull()?.temperature
+        return exactMatch?.temperature
     }
 
     private fun getAllChartPositions(): List<Pair<Float, Int>> {
