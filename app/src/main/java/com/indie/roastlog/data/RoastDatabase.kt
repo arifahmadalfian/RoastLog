@@ -39,6 +39,8 @@ data class RoastSessionEntity(
     val firstCrack: RoastingEvent?,
     val endRoast: RoastingEvent?,
     val burnerPlan: List<RoastingEvent>,
+    val airFlowPlan: List<RoastingEvent>,
+    val rpmPlan: List<RoastingEvent>,
     val temperatureData: List<IntervalData>
 )
 
@@ -77,7 +79,7 @@ interface RoastDao {
     suspend fun getSessionById(id: Long): RoastSessionEntity?
 }
 
-@Database(entities = [RoastSessionEntity::class], version = 4, exportSchema = false)
+@Database(entities = [RoastSessionEntity::class], version = 5, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class RoastDatabase : RoomDatabase() {
     abstract fun roastDao(): RoastDao

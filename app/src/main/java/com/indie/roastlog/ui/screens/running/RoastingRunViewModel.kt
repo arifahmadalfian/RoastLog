@@ -781,6 +781,8 @@ class RoastingRunViewModel : ViewModel() {
             firstCrack = state.actualFirstCrack,
             endRoast = state.actualEndRoast,
             burnerPlan = setup.burnerPlan,
+            airFlowPlan = setup.airFlowPlan,
+            rpmPlan = setup.rpmPlan,
             temperatureData = state.intervalDataList
         )
 
