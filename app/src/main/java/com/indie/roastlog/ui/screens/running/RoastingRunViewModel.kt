@@ -274,7 +274,18 @@ class RoastingRunViewModel : ViewModel() {
     fun resetTimer() {
         stopTimer()
         lastInterval = 0
-        _uiState.update { it.copy(elapsedMillis = 0L, intervalDataList = emptyList(), pendingBurnerIndex = -1, currentBurnerIndex = 0) }
+        _uiState.update { 
+            it.copy(
+                elapsedMillis = 0L, 
+                intervalDataList = emptyList(), 
+                pendingBurnerIndex = -1, 
+                currentBurnerIndex = -1,
+                pendingAirFlowIndex = -1,
+                currentAirFlowIndex = -1,
+                pendingRpmIndex = -1,
+                currentRpmIndex = -1
+            ) 
+        }
     }
 
     private fun onIntervalPassed(interval: Int) {
@@ -555,7 +566,7 @@ class RoastingRunViewModel : ViewModel() {
 
         return positions.map { (intervalNum, seconds) ->
             // Find the last event that has been reached (based on dialog being shown)
-            val applicableValue = getValueAtTimeFromPlan(sortedPlan, seconds, runningState.currentAirFlowIndex, state.airFlowPower.toIntOrNull() ?: 0)
+            val applicableValue = getValueAtTimeFromPlan(sortedPlan, seconds, runningState.currentAirFlowIndex)
 
             ChartDataPoint(
                 intervalNumber = intervalNum,
@@ -578,7 +589,7 @@ class RoastingRunViewModel : ViewModel() {
         val sortedPlan = state.rpmPlan.sortedBy { it.seconds }
 
         return positions.map { (intervalNum, seconds) ->
-            val applicableValue = getValueAtTimeFromPlan(sortedPlan, seconds, runningState.currentRpmIndex, state.rpmDrum.toIntOrNull() ?: 0)
+            val applicableValue = getValueAtTimeFromPlan(sortedPlan, seconds, runningState.currentRpmIndex)
 
             ChartDataPoint(
                 intervalNumber = intervalNum,
@@ -601,7 +612,7 @@ class RoastingRunViewModel : ViewModel() {
         val sortedPlan = state.burnerPlan.sortedBy { it.seconds }
 
         return positions.map { (intervalNum, seconds) ->
-            val applicableValue = getValueAtTimeFromPlan(sortedPlan, seconds, runningState.currentBurnerIndex, state.burnerPower.toIntOrNull() ?: 0)
+            val applicableValue = getValueAtTimeFromPlan(sortedPlan, seconds, runningState.currentBurnerIndex)
 
             ChartDataPoint(
                 intervalNumber = intervalNum,
@@ -615,26 +626,15 @@ class RoastingRunViewModel : ViewModel() {
         }
     }
 
-    private fun getValueAtTimeFromPlan(sortedPlan: List<RoastingEvent>, seconds: Int, currentIndex: Int, startValue: Int): Int? {
-        if (sortedPlan.isEmpty()) return null
-
-        // Before first event and no dialog shown yet
-        if (currentIndex < 0) {
-            // Still return start value only at second 0 for initial line
-            return if (seconds == 0) startValue else null
-        }
-
+    private fun getValueAtTimeFromPlan(sortedPlan: List<RoastingEvent>, seconds: Int, currentIndex: Int): Int? {
+        // No events passed yet, return null (empty value)
+        if (currentIndex < 0 || sortedPlan.isEmpty()) return null
+        
         // Find the applicable value based on current progress
         // currentIndex indicates which dialog has been shown (0-indexed)
         val applicableEvents = sortedPlan.take(currentIndex + 1).filter { it.seconds <= seconds }
         
-        return if (applicableEvents.isNotEmpty()) {
-            applicableEvents.last().temperature
-        } else if (seconds == 0) {
-            startValue
-        } else {
-            null
-        }
+        return applicableEvents.lastOrNull()?.temperature
     }
 
     private fun getAllChartPositions(): List<Pair<Float, Int>> {
