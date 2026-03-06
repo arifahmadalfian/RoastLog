@@ -73,13 +73,22 @@ class RoastingRunViewModel : ViewModel() {
     private var lastInterval: Int = 0
 
     fun init(formState: RoastingFormState) {
+        val turnPoint = formState.setupTurnPoint
+        val yellowing = formState.setupYellowing
+        val firstCrack = formState.setupFirstCrack
+        val endRoast = formState.setupEndRoast
+        
+        // Build initial event marks list from setup events
+        val initialEventMarks = listOfNotNull(turnPoint, yellowing, firstCrack, endRoast)
+        
         _uiState.update { it.copy(
             setupData = formState,
             // Pre-fill actuals from setup as a baseline, or keep them for reference
-            actualTurnPoint = formState.setupTurnPoint,
-            actualYellowing = formState.setupYellowing,
-            actualFirstCrack = formState.setupFirstCrack,
-            actualEndRoast = formState.setupEndRoast
+            actualTurnPoint = turnPoint,
+            actualYellowing = yellowing,
+            actualFirstCrack = firstCrack,
+            actualEndRoast = endRoast,
+            eventMarks = initialEventMarks
         ) }
         updateResults()
     }
@@ -139,44 +148,76 @@ class RoastingRunViewModel : ViewModel() {
     fun markTurnPoint(temp: Int) {
         val seconds = (_uiState.value.elapsedMillis / 1000).toInt()
         val ror = getRorValue(temp, seconds)
-        _uiState.update { it.copy(
-            actualTurnPoint = RoastingEvent(temp, seconds),
-            showRorDialog = true,
-            lastRorValue = ror
-        ) }
+        val newEvent = RoastingEvent(temp, seconds)
+        _uiState.update { currentState ->
+            // Remove old turn point from eventMarks if exists
+            val filteredMarks = currentState.eventMarks.filterNot { 
+                currentState.actualTurnPoint?.seconds == it.seconds 
+            }
+            currentState.copy(
+                actualTurnPoint = newEvent,
+                eventMarks = filteredMarks + newEvent,
+                showRorDialog = true,
+                lastRorValue = ror
+            )
+        }
         updateResults()
     }
 
     fun markYellowing(temp: Int) {
         val seconds = (_uiState.value.elapsedMillis / 1000).toInt()
         val ror = getRorValue(temp, seconds)
-        _uiState.update { it.copy(
-            actualYellowing = RoastingEvent(temp, seconds),
-            showRorDialog = true,
-            lastRorValue = ror
-        ) }
+        val newEvent = RoastingEvent(temp, seconds)
+        _uiState.update { currentState ->
+            // Remove old yellowing from eventMarks if exists
+            val filteredMarks = currentState.eventMarks.filterNot { 
+                currentState.actualYellowing?.seconds == it.seconds 
+            }
+            currentState.copy(
+                actualYellowing = newEvent,
+                eventMarks = filteredMarks + newEvent,
+                showRorDialog = true,
+                lastRorValue = ror
+            )
+        }
         updateResults()
     }
 
     fun markFirstCrack(temp: Int) {
         val seconds = (_uiState.value.elapsedMillis / 1000).toInt()
         val ror = getRorValue(temp, seconds)
-        _uiState.update { it.copy(
-            actualFirstCrack = RoastingEvent(temp, seconds),
-            showRorDialog = true,
-            lastRorValue = ror
-        ) }
+        val newEvent = RoastingEvent(temp, seconds)
+        _uiState.update { currentState ->
+            // Remove old first crack from eventMarks if exists
+            val filteredMarks = currentState.eventMarks.filterNot { 
+                currentState.actualFirstCrack?.seconds == it.seconds 
+            }
+            currentState.copy(
+                actualFirstCrack = newEvent,
+                eventMarks = filteredMarks + newEvent,
+                showRorDialog = true,
+                lastRorValue = ror
+            )
+        }
         updateResults()
     }
 
     fun markEndRoast(temp: Int) {
         val seconds = (_uiState.value.elapsedMillis / 1000).toInt()
         val ror = getRorValue(temp, seconds)
-        _uiState.update { it.copy(
-            actualEndRoast = RoastingEvent(temp, seconds),
-            showRorDialog = true,
-            lastRorValue = ror
-        ) }
+        val newEvent = RoastingEvent(temp, seconds)
+        _uiState.update { currentState ->
+            // Remove old end roast from eventMarks if exists
+            val filteredMarks = currentState.eventMarks.filterNot { 
+                currentState.actualEndRoast?.seconds == it.seconds 
+            }
+            currentState.copy(
+                actualEndRoast = newEvent,
+                eventMarks = filteredMarks + newEvent,
+                showRorDialog = true,
+                lastRorValue = ror
+            )
+        }
         updateResults()
         stopTimer()
     }
@@ -423,6 +464,32 @@ class RoastingRunViewModel : ViewModel() {
                 .plus(IntervalData(intervalNumber = interval, temperature = temperature))
                 .sortedBy { it.intervalNumber }
             currentState.copy(intervalDataList = updated)
+        }
+    }
+
+    fun updateEventTemperature(event: RoastingEvent, newTemperature: Int) {
+        _uiState.update { currentState ->
+            val updatedEvent = event.copy(temperature = newTemperature)
+            
+            // Update in eventMarks list
+            val updatedEventMarks = currentState.eventMarks.map {
+                if (it.seconds == event.seconds) updatedEvent else it
+            }
+            
+            // Update in specific event fields
+            val updatedState = currentState.copy(eventMarks = updatedEventMarks)
+            
+            when {
+                currentState.actualTurnPoint?.seconds == event.seconds -> 
+                    updatedState.copy(actualTurnPoint = updatedEvent)
+                currentState.actualYellowing?.seconds == event.seconds -> 
+                    updatedState.copy(actualYellowing = updatedEvent)
+                currentState.actualFirstCrack?.seconds == event.seconds -> 
+                    updatedState.copy(actualFirstCrack = updatedEvent)
+                currentState.actualEndRoast?.seconds == event.seconds -> 
+                    updatedState.copy(actualEndRoast = updatedEvent)
+                else -> updatedState
+            }
         }
     }
 

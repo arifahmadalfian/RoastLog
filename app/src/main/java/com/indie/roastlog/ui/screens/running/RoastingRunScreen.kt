@@ -45,6 +45,7 @@ import com.indie.roastlog.ui.components.RoastingChartBurner
 import com.indie.roastlog.ui.components.ScaffoldCustom
 import com.indie.roastlog.ui.components.SmallOutlinedTextField
 import com.indie.roastlog.ui.screens.form.RoastingFormState
+import com.indie.roastlog.ui.model.IntervalData
 import com.indie.roastlog.ui.model.RoastingEvent
 import java.util.*
 import kotlinx.coroutines.delay
@@ -57,6 +58,22 @@ data class EventMarkDialogData(
     val onConfirm: (Int) -> Unit,
     val isNonDismissible: Boolean = true
 )
+
+// Wrapper class for revision items (interval data or event marks)
+private sealed class RevisionItem {
+    abstract val seconds: Int
+    abstract val temperature: Int
+    
+    data class Interval(val data: IntervalData) : RevisionItem() {
+        override val seconds: Int get() = data.actualSeconds
+        override val temperature: Int get() = data.temperature
+    }
+    
+    data class Event(val data: RoastingEvent, val eventName: String = "Event") : RevisionItem() {
+        override val seconds: Int get() = data.seconds
+        override val temperature: Int get() = data.temperature
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -74,7 +91,7 @@ fun RoastingRunScreen(
     val voiceState by voiceRecognizer.state.collectAsState()
 
     var showRevisionDialog by remember { mutableStateOf(false) }
-    var selectedRevisionInterval by remember { mutableStateOf<Int?>(null) }
+    var selectedRevisionIndex by remember { mutableStateOf<Int?>(null) }
     var revisionTemperatureInput by remember { mutableStateOf("") }
     var revisionDropdownExpanded by remember { mutableStateOf(false) }
     
@@ -406,14 +423,30 @@ fun RoastingRunScreen(
 
         // Revision Dialog
         if (showRevisionDialog) {
-            val intervalSec = uiState.setupData.intervalSeconds.toIntOrNull() ?: 60
-            val sortedIntervals = uiState.intervalDataList.map { it.intervalNumber }.distinct().sorted()
+            // Combine interval data and event marks with event names
+            val revisionItems = buildList {
+                // Add interval data
+                uiState.intervalDataList.forEach { data ->
+                    add(RevisionItem.Interval(data))
+                }
+                // Add event marks with proper names
+                uiState.eventMarks.forEach { event ->
+                    val eventName = when {
+                        uiState.actualTurnPoint?.seconds == event.seconds -> "Turn Point"
+                        uiState.actualYellowing?.seconds == event.seconds -> "Yellowing"
+                        uiState.actualFirstCrack?.seconds == event.seconds -> "First Crack"
+                        uiState.actualEndRoast?.seconds == event.seconds -> "End Roast"
+                        else -> "Event"
+                    }
+                    add(RevisionItem.Event(event, eventName))
+                }
+            }.sortedBy { it.seconds }
 
-            LaunchedEffect(sortedIntervals) {
-                if (selectedRevisionInterval == null && sortedIntervals.isNotEmpty()) {
-                    val first = sortedIntervals.first()
-                    selectedRevisionInterval = first
-                    revisionTemperatureInput = uiState.intervalDataList.find { it.intervalNumber == first }?.temperature?.toString() ?: ""
+            LaunchedEffect(showRevisionDialog, revisionItems) {
+                if (selectedRevisionIndex == null && revisionItems.isNotEmpty()) {
+                    val lastIndex = revisionItems.lastIndex
+                    selectedRevisionIndex = lastIndex
+                    revisionTemperatureInput = revisionItems.getOrNull(lastIndex)?.temperature?.toString() ?: ""
                 }
             }
 
@@ -427,16 +460,19 @@ fun RoastingRunScreen(
                             onExpandedChange = { revisionDropdownExpanded = it },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            val label = selectedRevisionInterval?.let {
-                                val ts = it * intervalSec
-                                String.format(Locale.getDefault(), "%d.%02d", ts / 60, ts % 60)
-                            } ?: "Pilih menit"
+                            val label = selectedRevisionIndex?.let { idx ->
+                                revisionItems.getOrNull(idx)?.let { item ->
+                                    val m = item.seconds / 60
+                                    val s = item.seconds % 60
+                                    String.format(Locale.getDefault(), "%02d.%02d", m, s)
+                                }
+                            } ?: "Pilih waktu"
 
                             OutlinedTextField(
                                 value = label,
                                 onValueChange = {},
                                 readOnly = true,
-                                label = { Text("Menit") },
+                                label = { Text("Waktu") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = revisionDropdownExpanded) },
                                 modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth()
                             )
@@ -445,14 +481,21 @@ fun RoastingRunScreen(
                                 expanded = revisionDropdownExpanded,
                                 onDismissRequest = { revisionDropdownExpanded = false }
                             ) {
-                                sortedIntervals.forEach { intervalNum ->
-                                    val ts = intervalNum * intervalSec
-                                    val l = String.format(Locale.getDefault(), "%d.%02d", ts / 60, ts % 60)
+                                revisionItems.forEachIndexed { index, item ->
+                                    val m = item.seconds / 60
+                                    val s = item.seconds % 60
+                                    val timeLabel = String.format(Locale.getDefault(), "%02d.%02d", m, s)
+                                    val prefix = when(item) {
+                                        is RevisionItem.Event -> "[${item.eventName}] "
+                                        is RevisionItem.Interval -> ""
+                                    }
                                     DropdownMenuItem(
-                                        text = { Text(l) },
+                                        text = { 
+                                            Text("$prefix$timeLabel - ${item.temperature}°C") 
+                                        },
                                         onClick = {
-                                            selectedRevisionInterval = intervalNum
-                                            revisionTemperatureInput = uiState.intervalDataList.find { it.intervalNumber == intervalNum }?.temperature?.toString() ?: ""
+                                            selectedRevisionIndex = index
+                                            revisionTemperatureInput = item.temperature.toString()
                                             revisionDropdownExpanded = false
                                         }
                                     )
@@ -471,7 +514,15 @@ fun RoastingRunScreen(
                             keyboardActions = KeyboardActions(
                                 onDone = {
                                     if (revisionTemperatureInput.isNotEmpty()) {
-                                        selectedRevisionInterval?.let { viewModel.updateTemperatureAtInterval(it, revisionTemperatureInput.toIntOrNull() ?: 0) }
+                                        selectedRevisionIndex?.let { idx ->
+                                            val item = revisionItems.getOrNull(idx)
+                                            item?.let { 
+                                                when(it) {
+                                                    is RevisionItem.Interval -> viewModel.updateTemperatureAtInterval(it.data.intervalNumber, revisionTemperatureInput.toIntOrNull() ?: 0)
+                                                    is RevisionItem.Event -> viewModel.updateEventTemperature(it.data, revisionTemperatureInput.toIntOrNull() ?: 0)
+                                                }
+                                            }
+                                        }
                                         showRevisionDialog = false
                                     }
                                 }
@@ -482,7 +533,15 @@ fun RoastingRunScreen(
                 },
                 confirmButton = {
                     TextButton(onClick = {
-                        selectedRevisionInterval?.let { viewModel.updateTemperatureAtInterval(it, revisionTemperatureInput.toIntOrNull() ?: 0) }
+                        selectedRevisionIndex?.let { idx ->
+                            val item = revisionItems.getOrNull(idx)
+                            item?.let { 
+                                when(it) {
+                                    is RevisionItem.Interval -> viewModel.updateTemperatureAtInterval(it.data.intervalNumber, revisionTemperatureInput.toIntOrNull() ?: 0)
+                                    is RevisionItem.Event -> viewModel.updateEventTemperature(it.data, revisionTemperatureInput.toIntOrNull() ?: 0)
+                                }
+                            }
+                        }
                         showRevisionDialog = false
                     }) { Text("Submit") }
                 },
