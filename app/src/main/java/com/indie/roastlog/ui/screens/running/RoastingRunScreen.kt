@@ -1,5 +1,8 @@
 package com.indie.roastlog.ui.screens.running
 
+import android.content.Intent
+import android.speech.tts.TextToSpeech
+import android.util.Log
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -96,6 +99,110 @@ fun RoastingRunScreen(
     var revisionDropdownExpanded by remember { mutableStateOf(false) }
     
     var eventMarkDialogData by remember { mutableStateOf<EventMarkDialogData?>(null) }
+
+    // Text-to-Speech setup
+    var textToSpeech by remember { mutableStateOf<TextToSpeech?>(null) }
+    var ttsReady by remember { mutableStateOf(false) }
+    var ttsInitAttempted by remember { mutableStateOf(false) }
+    var ttsLocale by remember { mutableStateOf<Locale?>(null) }
+    
+    DisposableEffect(context) {
+        Log.d("TTS", "Creating TextToSpeech instance...")
+        val ttsInstance = TextToSpeech(context) { status ->
+            Log.d("TTS", "TTS Init callback called with status: $status")
+            ttsInitAttempted = true
+            if (status == TextToSpeech.SUCCESS) {
+                textToSpeech?.let { tts ->
+                    // Try Indonesian language
+                    val indonesianLocale = Locale.forLanguageTag("id-ID")
+                    val result = tts.setLanguage(indonesianLocale)
+                    Log.d("TTS", "Indonesian language result: $result")
+                    
+                    if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        // Fallback to English (US) - more commonly available
+                        val englishLocale = Locale.US
+                        val englishResult = tts.setLanguage(englishLocale)
+                        Log.d("TTS", "English fallback result: $englishResult")
+                        
+                        if (englishResult == TextToSpeech.LANG_MISSING_DATA || englishResult == TextToSpeech.LANG_NOT_SUPPORTED) {
+                            // Last fallback to default locale
+                            val defaultResult = tts.setLanguage(Locale.getDefault())
+                            Log.d("TTS", "Default locale result: $defaultResult")
+                            ttsReady = defaultResult != TextToSpeech.LANG_MISSING_DATA && defaultResult != TextToSpeech.LANG_NOT_SUPPORTED
+                            if (ttsReady) {
+                                ttsLocale = Locale.getDefault()
+                            }
+                        } else {
+                            ttsReady = true
+                            ttsLocale = englishLocale
+                        }
+                    } else {
+                        ttsReady = true
+                        ttsLocale = indonesianLocale
+                    }
+                    
+                    // Set speech rate (slightly slower for clarity)
+                    tts.setSpeechRate(0.9f)
+                    Log.d("TTS", "TTS is ready: $ttsReady, locale: $ttsLocale")
+                    
+                    // Test speak - use appropriate language
+                    if (ttsReady) {
+                        val isIndonesian = ttsLocale?.language == "id"
+                        val testText = if (isIndonesian) "Roasting ${uiState.setupData.beanType} sudah siap" else "Roasting ${uiState.setupData.beanType} are Ready"
+                        val testResult = tts.speak(testText, TextToSpeech.QUEUE_FLUSH, null, "test-tts")
+                        Log.d("TTS", "Test speak result: $testResult, text: $testText")
+                    } else {
+                        // Open TTS settings to install voice data
+                        Log.w("TTS", "No TTS language available. Opening settings...")
+                        try {
+                            val installIntent = Intent()
+                            installIntent.action = TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA
+                            context.startActivity(installIntent)
+                        } catch (e: Exception) {
+                            Log.e("TTS", "Cannot open TTS install: ${e.message}")
+                        }
+                    }
+                }
+            } else {
+                Log.e("TTS", "TTS initialization failed with status: $status")
+            }
+        }
+        textToSpeech = ttsInstance
+        Log.d("TTS", "TextToSpeech instance created: $ttsInstance")
+        
+        onDispose {
+            Log.d("TTS", "Shutting down TTS...")
+            textToSpeech?.stop()
+            textToSpeech?.shutdown()
+        }
+    }
+    
+    // Helper function to check if TTS is using Indonesian
+    fun isTtsIndonesian(): Boolean = ttsLocale?.language == "id"
+    
+    // Helper function to speak text with retry and bilingual support
+    fun speakText(indonesianText: String, englishText: String, retryCount: Int = 0) {
+        val textToSpeak = if (isTtsIndonesian()) indonesianText else englishText
+        Log.d("TTS", "Trying to speak: $textToSpeak, locale: $ttsLocale, ttsReady: $ttsReady, retryCount: $retryCount")
+        val tts = textToSpeech
+        if (tts != null && ttsReady) {
+            val utteranceId = "tts-${System.currentTimeMillis()}"
+            val result = tts.speak(textToSpeak, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+            Log.d("TTS", "Speak result: $result, utteranceId: $utteranceId")
+        } else if (retryCount < 5 && ttsInitAttempted) {
+            scope.launch {
+                delay(500)
+                speakText(indonesianText, englishText, retryCount + 1)
+            }
+        } else if (retryCount < 10 && !ttsInitAttempted) {
+            scope.launch {
+                delay(1000)
+                speakText(indonesianText, englishText, retryCount + 1)
+            }
+        } else {
+            Log.e("TTS", "Failed to speak after retries. ttsReady: $ttsReady, initAttempted: $ttsInitAttempted")
+        }
+    }
 
     // Initialize ViewModel with passed data
     LaunchedEffect(formState) {
@@ -563,6 +670,13 @@ fun RoastingRunScreen(
 
         // Popups during run
         if (uiState.showTemperatureDialog) {
+            val intervalNum = uiState.currentInterval
+            
+            // Text to Speech for Temperature Input
+            LaunchedEffect(Unit) {
+                speakText("Masukkan suhu, menit ke $intervalNum", "Input temperature, minute $intervalNum")
+            }
+            
             TemperatureInputDialog(
                 intervalNumber = uiState.currentInterval,
                 elapsedTime = formatRunTime(uiState.elapsedMillis),
@@ -583,6 +697,13 @@ fun RoastingRunScreen(
 
         if (uiState.showRorDialog) {
             val ror = uiState.lastRorValue
+            
+            // Text to Speech for ROR
+            LaunchedEffect(Unit) {
+                val rorText = ror?.toString() ?: "0"
+                speakText("Rate of Rise, $rorText derajat celcius per menit", "Rate of Rise, $rorText degrees per minute")
+            }
+            
             LaunchedEffect(Unit) {
                 delay(3000)
                 viewModel.dismissRorDialog()
@@ -607,6 +728,13 @@ fun RoastingRunScreen(
 
         if (uiState.showBurnerDialog) {
             val event = uiState.setupData.burnerPlan.getOrNull(uiState.currentBurnerIndex)
+            val burnerValue = event?.temperature?.toString() ?: "0"
+            
+            // Text to Speech for Burner
+            LaunchedEffect(Unit) {
+                speakText("Dayabakar, $burnerValue", "Burner, $burnerValue")
+            }
+            
             AutoCloseAlertDialog(
                 icon = Icons.Default.Whatshot,
                 iconTint = Color(0xFFE64A19),
@@ -620,6 +748,13 @@ fun RoastingRunScreen(
 
         if (uiState.showAirFlowDialog) {
             val event = uiState.setupData.airFlowPlan.getOrNull(uiState.currentAirFlowIndex)
+            val airFlowValue = event?.temperature?.toString() ?: "0"
+            
+            // Text to Speech for Air Flow
+            LaunchedEffect(Unit) {
+                speakText("Aliran Udara, $airFlowValue", "Airflow, $airFlowValue")
+            }
+            
             AutoCloseAlertDialog(
                 icon = Icons.Default.Air,
                 iconTint = Color(0xFF0288D1),
@@ -633,6 +768,13 @@ fun RoastingRunScreen(
 
         if (uiState.showRpmDialog) {
             val event = uiState.setupData.rpmPlan.getOrNull(uiState.currentRpmIndex)
+            val rpmValue = event?.temperature?.toString() ?: "0"
+            
+            // Text to Speech for RPM
+            LaunchedEffect(Unit) {
+                speakText("Kecepatan Drum, $rpmValue RPM", "Drum speed, $rpmValue RPM")
+            }
+            
             AutoCloseAlertDialog(
                 icon = Icons.Default.Sync,
                 iconTint = Color(0xFF43A047),
