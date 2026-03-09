@@ -593,8 +593,8 @@ fun RoastingRunScreen(
                 text = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = if (ror != null) "${ror.toInt()}°C" else "-",
-                            style = MaterialTheme.typography.displayMedium,
+                            text = if (ror != null) "${ror}°C" else "-",
+                            style = MaterialTheme.typography.displayLarge,
                             fontWeight = FontWeight.Bold,
                             color = if (ror != null && ror > 0) MaterialTheme.colorScheme.primary else Color.Gray
                         )
@@ -611,7 +611,7 @@ fun RoastingRunScreen(
                 icon = Icons.Default.Whatshot,
                 iconTint = Color(0xFFE64A19),
                 title = "Burner Power",
-                value = event?.temperature?.toInt()?.toString() ?: "-",
+                value = event?.temperature?.toString() ?: "-",
                 time = event?.time ?: "-",
                 onDismiss = { viewModel.dismissBurnerDialog() }
             )
@@ -623,7 +623,7 @@ fun RoastingRunScreen(
                 icon = Icons.Default.Air,
                 iconTint = Color(0xFF0288D1),
                 title = "Air Flow Power",
-                value = event?.temperature?.toInt()?.toString() ?: "-",
+                value = event?.temperature?.toString() ?: "-",
                 time = event?.time ?: "-",
                 onDismiss = { viewModel.dismissAirFlowDialog() }
             )
@@ -635,7 +635,7 @@ fun RoastingRunScreen(
                 icon = Icons.Default.Sync,
                 iconTint = Color(0xFF43A047),
                 title = "RPM Drum Speed",
-                value = event?.temperature?.toInt()?.toString() ?: "-",
+                value = event?.temperature?.toString() ?: "-",
                 time = event?.time ?: "-",
                 onDismiss = { viewModel.dismissRpmDialog() }
             )
@@ -656,7 +656,7 @@ fun RowScope.PlanSummarySection(title: String, events: List<RoastingEvent>) {
                 modifier = Modifier.padding(bottom = 2.dp)
             ) {
                 Text(
-                    text = "${event.temperature.toInt()}|${event.time}",
+                    text = "${event.temperature}|${event.time}",
                     style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                 )
@@ -692,7 +692,7 @@ fun AutoCloseAlertDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(text = "Target: $value", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold)
+                Text(text = value, style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.ExtraBold)
                 Text(text = "At time: $time", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
