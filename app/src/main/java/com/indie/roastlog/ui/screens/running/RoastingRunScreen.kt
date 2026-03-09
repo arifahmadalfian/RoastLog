@@ -1033,3 +1033,55 @@ fun TemperatureInputDialogEventMarkPreview() {
         )
     }
 }
+
+@Preview(showBackground = true)
+@Composable
+fun RorDialogPreview() {
+    MaterialTheme {
+        Box{
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text("Rate of Rise (ROR)") },
+                text = {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "12°C",
+                            style = MaterialTheme.typography.displayLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
+                    }
+                },
+                confirmButton = { TextButton(onClick = {}) { Text("Tutup") } }
+            )
+        }
+
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun RorDialogNegativePreview() {
+    MaterialTheme {
+        Box{
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text("Rate of Rise (ROR)") },
+                text = {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "-3°C",
+                            style = MaterialTheme.typography.displayLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Gray
+                        )
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
+                    }
+                },
+                confirmButton = { TextButton(onClick = {}) { Text("Tutup") } }
+            )
+        }
+
+    }
+}
