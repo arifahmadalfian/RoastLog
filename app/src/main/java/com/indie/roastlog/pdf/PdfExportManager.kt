@@ -505,150 +505,122 @@ class PdfExportManager(private val context: Context) {
         // Draw horizontal line
         canvas.drawLine(paddingLeft, paddingTop + 5f, paddingLeft + graphWidth, paddingTop + 5f, linePaint)
 
-        // Draw ROR values horizontally
+        // Draw ROR values horizontally - display ALL rorData positions including fractional
         if (rorData.isNotEmpty()) {
             val stepX = graphWidth / maxIntervals
 
-            for (i in 0..maxIntervals) {
-                val x = paddingLeft + (i * stepX)
+            // Display ROR at each data point's exact position
+            rorData.forEach { point ->
+                point.ror?.let { ror ->
+                    val x = paddingLeft + (point.intervalNumber * stepX)
 
-                // Find ROR value for this interval
-                val rorValue = rorData.find { it.intervalNumber.toInt() == i }?.ror ?: 0
+                    // Draw ROR value at exact position
+                    val displayValue = if (ror > 0) "$ror°" else "$ror"
+                    canvas.drawText(displayValue, x, paddingTop, valuePaint)
 
-                // Draw ROR value
-                val displayValue = if (rorValue > 0) "$rorValue°" else "$rorValue"
-                canvas.drawText(displayValue, x, paddingTop, valuePaint)
-
-                // Draw time label below
-                val timeStr = formatTime(i.toFloat(), data.intervalSeconds)
-                canvas.drawText(timeStr, x, paddingTop + 20f, timePaint)
+                    // For integer positions, also draw time label
+                    if (point.intervalNumber == point.intervalNumber.toInt().toFloat()) {
+                        val timeStr = formatTime(point.intervalNumber, data.intervalSeconds)
+                        canvas.drawText(timeStr, x, paddingTop + 20f, timePaint)
+                    }
+                }
             }
         }
 
         return bitmap
     }
 
-    // Build ROR data combining interval data and events with interpolation
+    // Build ROR data combining interval data and events with interpolation (like RoastingDetailScreen)
     private fun buildRorDataForPdf(data: RoastSessionData): List<ChartDataPoint> {
         val interval = data.intervalSeconds
         val totalSeconds = data.targetDuration * 60
         val maxIntervals = totalSeconds / interval
 
-        // Build all data points (charge temp + interval data + events)
-        val allPoints = mutableListOf<Pair<Int, Int>>()
+        // Build all positions (intervals + events) like getAllChartPositions() in ViewModel
+        val positions = mutableListOf<Pair<Float, Int>>()
 
-        // Add charge temperature at second 0
-        allPoints.add(0 to data.startTemperature)
+        // Add regular interval positions
+        for (i in 0..maxIntervals) {
+            positions.add(i.toFloat() to (i * interval))
+        }
+
+        // Add event mark positions (fractional positions)
+        listOfNotNull(data.turnPointEvent, data.yellowingEvent, data.firstCrackEvent, data.endRoastEvent).forEach { ev ->
+            val eventIntervalNum = ev.seconds.toFloat() / interval
+            // Only add if not already in list
+            if (positions.none { it.second == ev.seconds }) {
+                positions.add(eventIntervalNum to ev.seconds)
+            }
+        }
+
+        val sortedPositions = positions.sortedBy { it.first }
+
+        // Build all data points (interval data + events) for interpolation
+        val allDataPoints = buildAllDataPoints(data)
+
+        // Calculate ROR for each position with interpolation (like getChartRor in ViewModel)
+        return sortedPositions.mapNotNull { (intervalNum, seconds) ->
+            val rorValue = calculateRorWithInterpolation(seconds, allDataPoints)
+
+            rorValue?.let {
+                ChartDataPoint(
+                    intervalNumber = intervalNum,
+                    totalSeconds = seconds,
+                    temperature = getTemperatureAtSeconds(seconds, allDataPoints),
+                    ror = rorValue
+                )
+            }
+        }
+    }
+
+    // Build all data points combining interval data and events (like in ViewModel)
+    private fun buildAllDataPoints(data: RoastSessionData): List<Pair<Int, Int>> {
+        val points = mutableListOf<Pair<Int, Int>>()
 
         // Add interval data points
         data.temperatureData.forEach { point ->
             point.temperature?.let { temp ->
-                allPoints.add(point.totalSeconds to temp)
+                points.add(point.totalSeconds to temp)
             }
         }
 
-        // Add event points
-        data.turnPointEvent?.let { allPoints.add(it.seconds to it.temperature) }
-        data.yellowingEvent?.let { allPoints.add(it.seconds to it.temperature) }
-        data.firstCrackEvent?.let { allPoints.add(it.seconds to it.temperature) }
-        data.endRoastEvent?.let { allPoints.add(it.seconds to it.temperature) }
+        // Add event mark points
+        listOfNotNull(data.turnPointEvent, data.yellowingEvent, data.firstCrackEvent, data.endRoastEvent).forEach { ev ->
+            points.add(ev.seconds to ev.temperature)
+        }
 
-        // Remove duplicates and sort
-        val sortedPoints = allPoints.distinctBy { it.first }.sortedBy { it.first }
-
-        val result = mutableListOf<ChartDataPoint>()
-        
-        // Calculate ROR for each interval
-        for (i in 0..maxIntervals) {
-            val seconds = i * interval
-            val rorValue = calculateRor(seconds, sortedPoints)
-            rorValue?.let {
-                result.add(
-                    ChartDataPoint(
-                        intervalNumber = i.toFloat(),
-                        totalSeconds = seconds,
-                        temperature = null,
-                        ror = rorValue
-                    )
-                )
-            }
-        }
-        
-        // Add ROR for events at their exact positions (fractional interval numbers)
-        data.turnPointEvent?.let { event ->
-            calculateRor(event.seconds, sortedPoints)?.let { ror ->
-                val intervalNum = event.seconds.toFloat() / interval
-                result.add(
-                    ChartDataPoint(
-                        intervalNumber = intervalNum,
-                        totalSeconds = event.seconds,
-                        temperature = null,
-                        ror = ror
-                    )
-                )
-            }
-        }
-        data.yellowingEvent?.let { event ->
-            calculateRor(event.seconds, sortedPoints)?.let { ror ->
-                val intervalNum = event.seconds.toFloat() / interval
-                result.add(
-                    ChartDataPoint(
-                        intervalNumber = intervalNum,
-                        totalSeconds = event.seconds,
-                        temperature = null,
-                        ror = ror
-                    )
-                )
-            }
-        }
-        data.firstCrackEvent?.let { event ->
-            calculateRor(event.seconds, sortedPoints)?.let { ror ->
-                val intervalNum = event.seconds.toFloat() / interval
-                result.add(
-                    ChartDataPoint(
-                        intervalNumber = intervalNum,
-                        totalSeconds = event.seconds,
-                        temperature = null,
-                        ror = ror
-                    )
-                )
-            }
-        }
-        data.endRoastEvent?.let { event ->
-            calculateRor(event.seconds, sortedPoints)?.let { ror ->
-                val intervalNum = event.seconds.toFloat() / interval
-                result.add(
-                    ChartDataPoint(
-                        intervalNumber = intervalNum,
-                        totalSeconds = event.seconds,
-                        temperature = null,
-                        ror = ror
-                    )
-                )
-            }
-        }
-        
-        return result.sortedBy { it.intervalNumber }
+        return points.sortedBy { it.first }
     }
 
-    private fun calculateRor(seconds: Int, allPoints: List<Pair<Int, Int>>): Int? {
+    // Get previous temperature before specific seconds
+    private fun getPreviousTemperature(seconds: Int, allPoints: List<Pair<Int, Int>>): Int? {
+        return allPoints.sortedBy { it.first }.lastOrNull { it.first < seconds }?.second
+    }
+
+    // Calculate ROR with interpolation (like getRorValueForChart in ViewModel)
+    private fun calculateRorWithInterpolation(seconds: Int, allPoints: List<Pair<Int, Int>>): Int? {
+        // At second 0, RoR is 0 (starting point, no previous data)
         if (seconds == 0) return 0
 
         val currentTemp = getTemperatureAtSeconds(seconds, allPoints) ?: return null
-        val prevTemp = allPoints.sortedBy { it.first }.lastOrNull { it.first < seconds }?.second ?: return null
+        val prevTemp = getPreviousTemperature(seconds, allPoints) ?: return null
         return currentTemp - prevTemp
     }
 
+    // Get temperature at specific seconds with interpolation (like getTemperatureAtSeconds in ViewModel)
     private fun getTemperatureAtSeconds(seconds: Int, allPoints: List<Pair<Int, Int>>): Int? {
         if (allPoints.isEmpty()) return null
 
+        // Check for exact match
         allPoints.find { it.first == seconds }?.let { return it.second }
 
+        // Find surrounding points for interpolation
         val before = allPoints.lastOrNull { it.first < seconds }
         val after = allPoints.firstOrNull { it.first > seconds }
 
         return when {
             before != null && after != null -> {
+                // Linear interpolation
                 val ratio = (seconds - before.first).toFloat() / (after.first - before.first)
                 (before.second + ratio * (after.second - before.second)).toInt()
             }
