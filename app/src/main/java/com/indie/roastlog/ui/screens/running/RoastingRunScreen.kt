@@ -1,5 +1,6 @@
 package com.indie.roastlog.ui.screens.running
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -22,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -30,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -39,9 +42,6 @@ import com.indie.roastlog.speech.VoiceRecognitionState
 import com.indie.roastlog.speech.VoiceRecognizerManager
 import com.indie.roastlog.ui.components.RoastingChart
 import com.indie.roastlog.ui.components.RoastingChartRor
-import com.indie.roastlog.ui.components.RoastingChartAirFlow
-import com.indie.roastlog.ui.components.RoastingChartRpm
-import com.indie.roastlog.ui.components.RoastingChartBurner
 import com.indie.roastlog.ui.components.ScaffoldCustom
 import com.indie.roastlog.ui.components.SmallOutlinedTextField
 import com.indie.roastlog.ui.screens.form.RoastingFormState
@@ -613,6 +613,7 @@ fun RoastingRunScreen(
                 title = "Burner Power",
                 value = event?.temperature?.toString() ?: "-",
                 time = event?.time ?: "-",
+                backgroundColor = Color(0xFFE64A19),
                 onDismiss = { viewModel.dismissBurnerDialog() }
             )
         }
@@ -625,6 +626,7 @@ fun RoastingRunScreen(
                 title = "Air Flow Power",
                 value = event?.temperature?.toString() ?: "-",
                 time = event?.time ?: "-",
+                backgroundColor = Color(0xFF0288D1),
                 onDismiss = { viewModel.dismissAirFlowDialog() }
             )
         }
@@ -637,6 +639,7 @@ fun RoastingRunScreen(
                 title = "RPM Drum Speed",
                 value = event?.temperature?.toString() ?: "-",
                 time = event?.time ?: "-",
+                backgroundColor = Color(0xFF43A047),
                 onDismiss = { viewModel.dismissRpmDialog() }
             )
         }
@@ -656,7 +659,7 @@ fun RowScope.PlanSummarySection(title: String, events: List<RoastingEvent>) {
                 modifier = Modifier.padding(bottom = 2.dp)
             ) {
                 Text(
-                    text = "${event.temperature}|${event.time}",
+                    text = "${event.temperature}  -  ${event.time}",
                     style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                 )
@@ -672,6 +675,7 @@ fun AutoCloseAlertDialog(
     title: String,
     value: String,
     time: String,
+    backgroundColor: Color,
     onDismiss: () -> Unit
 ) {
     LaunchedEffect(time) {
@@ -680,20 +684,64 @@ fun AutoCloseAlertDialog(
     }
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(imageVector = icon, contentDescription = null, tint = iconTint)
-                Text(title)
+            Box(modifier = Modifier.fillMaxWidth()) {
+                // Background canvas with gradient
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    val gradientBrush = Brush.verticalGradient(
+                        colors = listOf(
+                            backgroundColor.copy(alpha = 0.25f),
+                            backgroundColor.copy(alpha = 0.05f)
+                        ),
+                        startY = 0f,
+                        endY = size.height
+                    )
+                    drawRect(brush = gradientBrush)
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Icon(imageVector = icon, contentDescription = null, tint = iconTint)
+                    Text(title)
+                }
             }
         },
         text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(text = value, style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.ExtraBold)
-                Text(text = "At time: $time", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Box(modifier = Modifier.fillMaxWidth()) {
+                // Background canvas with subtle color
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    val gradientBrush = Brush.verticalGradient(
+                        colors = listOf(
+                            backgroundColor.copy(alpha = 0.05f),
+                            backgroundColor.copy(alpha = 0.15f)
+                        ),
+                        startY = 0f,
+                        endY = size.height
+                    )
+                    drawRect(brush = gradientBrush)
+                }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = value,
+                        style = MaterialTheme.typography.displayLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = iconTint
+                    )
+                    Text(
+                        text = "At time: $time",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         },
         confirmButton = {
@@ -763,6 +811,7 @@ fun TemperatureInputDialog(
     intervalNumber: Int? = null,
     elapsedTime: String? = null,
     eventMarkData: EventMarkDialogData? = null,
+    isEventMarkMode: Boolean = eventMarkData != null,
     voiceState: VoiceRecognitionState = VoiceRecognitionState.Idle,
     onVoiceClick: () -> Unit = {},
     onDismiss: () -> Unit,
@@ -777,9 +826,6 @@ fun TemperatureInputDialog(
             input = voiceState.number.toString()
         }
     }
-
-    // Determine if this is event mark mode or interval mode
-    val isEventMarkMode = eventMarkData != null
     
     AlertDialog(
         onDismissRequest = { if (!isEventMarkMode) onDismiss() },
@@ -793,9 +839,9 @@ fun TemperatureInputDialog(
         },
         title = { 
             if (isEventMarkMode) {
-                Text(eventMarkData.title)
+                Text(eventMarkData?.title ?: "-")
             } else {
-                Text("Input Suhu #$intervalNumber (${elapsedTime ?: ""})")
+                Text("Input Suhu (${elapsedTime ?: ""})")
             }
         },
         text = {
@@ -851,7 +897,7 @@ fun TemperatureInputDialog(
         confirmButton = {
             Button(
                 onClick = { input.toIntOrNull()?.let { onConfirm(it) } },
-                modifier = if (isEventMarkMode) Modifier.fillMaxWidth() else Modifier,
+                modifier = Modifier.fillMaxWidth(),
                 enabled = input.isNotEmpty()
             ) { Text("Submit") }
         },
@@ -886,5 +932,104 @@ fun EventMarkButton(
             Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = iconColor)
             Text(title, style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center, maxLines = 1)
         }
+    }
+}
+
+// ==================== PREVIEWS ====================
+
+@Preview(showBackground = true)
+@Composable
+fun AutoCloseAlertDialogBurnerPreview() {
+    MaterialTheme {
+        AutoCloseAlertDialog(
+            icon = Icons.Default.Whatshot,
+            iconTint = Color(0xFFE64A19),
+            title = "Burner Power",
+            value = "85",
+            time = "03:45",
+            backgroundColor = Color(0xFFE64A19),
+            onDismiss = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun AutoCloseAlertDialogAirFlowPreview() {
+    MaterialTheme {
+        AutoCloseAlertDialog(
+            icon = Icons.Default.Air,
+            iconTint = Color(0xFF0288D1),
+            title = "Air Flow Power",
+            value = "75",
+            time = "04:20",
+            backgroundColor = Color(0xFF0288D1),
+            onDismiss = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun AutoCloseAlertDialogRpmPreview() {
+    MaterialTheme {
+        AutoCloseAlertDialog(
+            icon = Icons.Default.Sync,
+            iconTint = Color(0xFF43A047),
+            title = "RPM Drum Speed",
+            value = "60",
+            time = "05:10",
+            backgroundColor = Color(0xFF43A047),
+            onDismiss = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun TemperatureInputDialogPreview() {
+    MaterialTheme {
+        TemperatureInputDialog(
+            intervalNumber = 5,
+            elapsedTime = "03:45",
+            voiceState = VoiceRecognitionState.Idle,
+            onVoiceClick = {},
+            onDismiss = {},
+            onConfirm = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun TemperatureInputDialogListeningPreview() {
+    MaterialTheme {
+        TemperatureInputDialog(
+            intervalNumber = 3,
+            elapsedTime = "02:20",
+            voiceState = VoiceRecognitionState.Listening,
+            onVoiceClick = {},
+            onDismiss = {},
+            onConfirm = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun TemperatureInputDialogEventMarkPreview() {
+    MaterialTheme {
+        TemperatureInputDialog(
+            eventMarkData = EventMarkDialogData(
+                title = "First Crack",
+                icon = Icons.Default.Flag,
+                iconColor = Color(0xFFE91E63),
+                onConfirm = {}
+            ),
+            voiceState = VoiceRecognitionState.Idle,
+            onVoiceClick = {},
+            onDismiss = {},
+            onConfirm = {}
+        )
     }
 }
