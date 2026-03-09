@@ -473,8 +473,27 @@ fun RoastingRunScreen(
 //                    )
 //                }
             }
-
-            val isEnable = uiState.actualEndRoast != null && uiState.weightOut.isNotEmpty() && uiState.intervalDataList.isNotEmpty()
+            
+            // Validation function for showing missing data message
+            fun getMissingDataMessage(): String? {
+                return when {
+                    uiState.actualEndRoast == null && uiState.weightOut.isEmpty() && uiState.intervalDataList.isEmpty() ->
+                        "End Roast belum ditandai, Berat akhir belum diisi, dan Data interval masih kosong"
+                    uiState.actualEndRoast == null && uiState.weightOut.isEmpty() ->
+                        "End Roast belum ditandai dan Berat akhir belum diisi"
+                    uiState.actualEndRoast == null && uiState.intervalDataList.isEmpty() ->
+                        "End Roast belum ditandai dan Data interval masih kosong"
+                    uiState.weightOut.isEmpty() && uiState.intervalDataList.isEmpty() ->
+                        "Berat akhir belum diisi dan Data interval masih kosong"
+                    uiState.actualEndRoast == null ->
+                        "End Roast belum ditandai"
+                    uiState.weightOut.isEmpty() ->
+                        "Berat akhir belum diisi"
+                    uiState.intervalDataList.isEmpty() ->
+                        "Data interval masih kosong"
+                    else -> null
+                }
+            }
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
@@ -490,15 +509,21 @@ fun RoastingRunScreen(
 
                 Button(
                     onClick = {
-                        scope.launch {
-                            val result = exportToPdf()
-                            if (result != null) {
-                                snackbarHostState.showSnackbar("PDF exported: $result")
+                        val missingMessage = getMissingDataMessage()
+                        if (missingMessage != null) {
+                            scope.launch {
+                                snackbarHostState.showSnackbar(missingMessage)
+                            }
+                        } else {
+                            scope.launch {
+                                val result = exportToPdf()
+                                if (result != null) {
+                                    snackbarHostState.showSnackbar("PDF exported: $result")
+                                }
                             }
                         }
                     },
-                    modifier = Modifier.weight(1f),
-                    enabled = isEnable
+                    modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.PictureAsPdf, null)
                     Spacer(Modifier.width(8.dp))
@@ -510,15 +535,21 @@ fun RoastingRunScreen(
             // Save Button
             Button(
                 onClick = {
-                    viewModel.saveToDatabase(context)
-                    scope.launch {
-                        snackbarHostState.showSnackbar("Data berhasil disimpan ke database")
+                    val missingMessage = getMissingDataMessage()
+                    if (missingMessage != null) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar(missingMessage)
+                        }
+                    } else {
+                        viewModel.saveToDatabase(context)
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Data berhasil disimpan ke database")
+                        }
+                        onFinish()
                     }
-                    onFinish()
                 },
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                enabled = isEnable
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Icon(Icons.Default.Save, null)
                 Spacer(Modifier.width(8.dp))
