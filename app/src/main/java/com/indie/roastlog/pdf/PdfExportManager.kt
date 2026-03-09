@@ -336,237 +336,197 @@ class PdfExportManager(private val context: Context) {
         else String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
     }
 
-    // Create temperature chart using native Canvas (fixed width for PDF)
+    // Create temperature chart using native Canvas (line chart with connected points)
     private fun createTemperatureChartBitmap(data: RoastSessionData): Bitmap {
         val totalSeconds = data.targetDuration * 60
         val maxIntervals = if (data.intervalSeconds > 0) totalSeconds / data.intervalSeconds else 0
-        
+
         // Fixed width for PDF - all 20 intervals in one chart
-        val chartWidth = 800 // Large width to accommodate all data points
+        val chartWidth = 800
         val chartHeight = 500
-        
+
         val bitmap = createBitmap(chartWidth, chartHeight)
         val canvas = Canvas(bitmap)
-        
+
         // Background
         canvas.drawColor(Color.WHITE)
-        
+
         val paddingLeft = 60f
         val paddingRight = 300f
-        val paddingTop = 20f
-        val paddingBottom = 40f
-        
+        val paddingTop = 40f
+        val paddingBottom = 60f
+
         val graphWidth = chartWidth - paddingLeft - paddingRight
         val graphHeight = chartHeight - paddingTop - paddingBottom
-        
+
         // Paints
         val gridPaint = Paint().apply {
             color = Color.LTGRAY
             strokeWidth = 1f
         }
-        
+
         val axisPaint = Paint().apply {
             color = Color.BLACK
             strokeWidth = 2f
         }
-        
+
         val labelPaint = Paint().apply {
             color = Color.BLACK
-            textSize = 16f
+            textSize = 10f
             textAlign = Paint.Align.CENTER
         }
-        
+
         val yLabelPaint = Paint().apply {
             color = Color.BLACK
-            textSize = 16f
+            textSize = 10f
             textAlign = Paint.Align.RIGHT
         }
-        
+
         val linePaint = Paint().apply {
             color = "#2196F3".toColorInt()
-            strokeWidth = 3f
+            strokeWidth = 2f
             isAntiAlias = true
+            style = Paint.Style.STROKE
         }
-        
+
         val pointPaint = Paint().apply {
             color = "#2196F3".toColorInt()
             style = Paint.Style.FILL
+            isAntiAlias = true
         }
-        
+
         // Y-axis range (70 to 240)
         val yMin = 70f
         val yMax = 240f
         val yRange = yMax - yMin
-        
-        // Draw Y-axis grid lines and labels (every 10 degrees: 70, 80, 90... 240)
+
+        // Only draw Y-axis labels (no horizontal grid lines)
         val yStep = 10f
         var y = yMin
         while (y <= yMax) {
             val yPos = paddingTop + graphHeight - ((y - yMin) / yRange * graphHeight)
-            canvas.drawLine(paddingLeft, yPos, paddingLeft + graphWidth, yPos, gridPaint)
-            canvas.drawText(y.toInt().toString(), paddingLeft - 10f, yPos + 5f, yLabelPaint)
+            canvas.drawText(y.toInt().toString(), paddingLeft - 10f, yPos + 4f, yLabelPaint)
             y += yStep
         }
-        
-        // Draw X-axis grid lines and labels (every 1 minute: 0, 1, 2... 20)
+
+        // Draw X-axis grid lines and labels only (vertical lines)
         for (i in 0..maxIntervals) {
             val xPos = paddingLeft + (i.toFloat() / maxIntervals * graphWidth)
             canvas.drawLine(xPos, paddingTop, xPos, paddingTop + graphHeight, gridPaint)
             val timeStr = formatTime(i.toFloat(), data.intervalSeconds)
-            canvas.drawText(timeStr, xPos, paddingTop + graphHeight + 25f, labelPaint)
+            canvas.drawText(timeStr, xPos, paddingTop + graphHeight + 20f, labelPaint)
         }
-        
-        // Draw axes
-        canvas.drawLine(paddingLeft, paddingTop, paddingLeft, paddingTop + graphHeight, axisPaint)
+
+        // Draw axes (bottom and left)
         canvas.drawLine(paddingLeft, paddingTop + graphHeight, paddingLeft + graphWidth, paddingTop + graphHeight, axisPaint)
-        
-        // Draw temperature line
+        canvas.drawLine(paddingLeft, paddingTop, paddingLeft, paddingTop + graphHeight, axisPaint)
+
+        // Draw temperature line connecting points
         if (data.temperatureData.isNotEmpty()) {
             val path = Path()
             var firstPoint = true
-            
+
             data.temperatureData.forEach { point ->
                 point.temperature?.let { temp ->
                     val x = paddingLeft + (point.intervalNumber / maxIntervals * graphWidth)
                     val y = paddingTop + graphHeight - ((temp - yMin) / yRange * graphHeight)
-                    
+
                     if (firstPoint) {
                         path.moveTo(x, y)
                         firstPoint = false
                     } else {
                         path.lineTo(x, y)
                     }
-                    
-                    // Draw point
-                    canvas.drawCircle(x, y, 6f, pointPaint)
                 }
             }
-            
+
+            // Draw the connecting line
             canvas.drawPath(path, linePaint)
+
+            // Draw points (circles) at each data point
+            data.temperatureData.forEach { point ->
+                point.temperature?.let { temp ->
+                    val x = paddingLeft + (point.intervalNumber / maxIntervals * graphWidth)
+                    val y = paddingTop + graphHeight - ((temp - yMin) / yRange * graphHeight)
+                    canvas.drawCircle(x, y, 4f, pointPaint)
+                }
+            }
         }
-        
+
         return bitmap
     }
 
-    // Create ROR chart using native Canvas (line chart like temperature)
+    // Create ROR chart using native Canvas (simple horizontal text display)
     private fun createRorChartBitmap(data: RoastSessionData): Bitmap {
         val totalSeconds = data.targetDuration * 60
         val maxIntervals = if (data.intervalSeconds > 0) totalSeconds / data.intervalSeconds else 0
-        
-        val chartWidth = 800 // Same width as temperature chart
-        val chartHeight = 300 // Increased height for better visualization
-        
+
+        val chartWidth = 800
+        val chartHeight = 150
+
         val bitmap = createBitmap(chartWidth, chartHeight)
         val canvas = Canvas(bitmap)
-        
-        // Background
+
+        // White background
         canvas.drawColor(Color.WHITE)
-        
+
         val paddingLeft = 60f
         val paddingRight = 300f
-        val paddingTop = 20f
-        val paddingBottom = 40f
-        
+        val paddingTop = 50f
+
         val graphWidth = chartWidth - paddingLeft - paddingRight
-        val graphHeight = chartHeight - paddingTop - paddingBottom
-        
+
         // Paints
-        val gridPaint = Paint().apply {
-            color = Color.LTGRAY
-            strokeWidth = 1f
-        }
-        
-        val axisPaint = Paint().apply {
+        val titlePaint = Paint().apply {
             color = Color.BLACK
-            strokeWidth = 2f
-        }
-        
-        val labelPaint = Paint().apply {
-            color = Color.BLACK
-            textSize = 16f
-            textAlign = Paint.Align.CENTER
-        }
-        
-        val yLabelPaint = Paint().apply {
-            color = Color.BLACK
-            textSize = 16f
-            textAlign = Paint.Align.RIGHT
-        }
-        
-        val linePaint = Paint().apply {
-            color = "#4CAF50".toColorInt()
-            strokeWidth = 1.5f
-            isAntiAlias = true
+            textSize = 12f
+            typeface = Typeface.DEFAULT_BOLD
         }
 
-        val pointPaint = Paint().apply {
+        val valuePaint = Paint().apply {
             color = "#4CAF50".toColorInt()
-            style = Paint.Style.FILL
+            textSize = 14f
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.DEFAULT_BOLD
+        }
+
+        val timePaint = Paint().apply {
+            color = Color.GRAY
+            textSize = 9f
+            textAlign = Paint.Align.CENTER
+        }
+
+        val linePaint = Paint().apply {
+            color = Color.LTGRAY
+            strokeWidth = 1f
         }
 
         // Build ROR data
         val rorData = buildRorDataForPdf(data)
-        
-        // Calculate Y-axis range based on ROR values
-        val rorValues = rorData.mapNotNull { it.ror }
-        val yMin = if (rorValues.isNotEmpty()) (rorValues.minOrNull()?.toFloat() ?: 0f).coerceAtLeast(0f) else 0f
-        val yMax = if (rorValues.isNotEmpty()) rorValues.maxOrNull()?.toFloat() ?: 10f else 10f
-        val yRange = yMax - yMin
-        val yPadding = yRange * 0.1f // 10% padding
-        val adjustedYMin = (yMin - yPadding).coerceAtLeast(0f)
-        val adjustedYMax = yMax + yPadding
-        val adjustedYRange = adjustedYMax - adjustedYMin
-        
-        // Draw Y-axis grid lines and labels
-        val yStep = adjustedYRange / 5f
-        var yValue = adjustedYMin
-        while (yValue <= adjustedYMax) {
-            val yPos = paddingTop + graphHeight - ((yValue - adjustedYMin) / adjustedYRange * graphHeight)
-            canvas.drawLine(paddingLeft, yPos, paddingLeft + graphWidth, yPos, gridPaint)
-            canvas.drawText(yValue.toInt().toString(), paddingLeft - 10f, yPos + 5f, yLabelPaint)
-            yValue += yStep
-        }
-        
-        // Draw X-axis grid lines and labels (every 1 minute)
-        for (i in 0..maxIntervals) {
-            val xPos = paddingLeft + (i.toFloat() / maxIntervals * graphWidth)
-            canvas.drawLine(xPos, paddingTop, xPos, paddingTop + graphHeight, gridPaint)
-            val timeStr = formatTime(i.toFloat(), data.intervalSeconds)
-            canvas.drawText(timeStr, xPos, paddingTop + graphHeight + 25f, labelPaint)
-        }
-        
-        // Draw axes
-        canvas.drawLine(paddingLeft, paddingTop, paddingLeft, paddingTop + graphHeight, axisPaint)
-        canvas.drawLine(paddingLeft, paddingTop + graphHeight, paddingLeft + graphWidth, paddingTop + graphHeight, axisPaint)
-        
-        // Draw ROR line
+
+        // Draw title
+        canvas.drawText("ROR (kenaikan suhu bean per menit)", paddingLeft, paddingTop - 20f, titlePaint)
+
+        // Draw horizontal line
+        canvas.drawLine(paddingLeft, paddingTop + 25f, paddingLeft + graphWidth, paddingTop + 25f, linePaint)
+
+        // Draw ROR values horizontally
         if (rorData.isNotEmpty()) {
-            val path = Path()
-            var firstPoint = true
+            val stepX = graphWidth / maxIntervals
 
-            rorData.forEach { point ->
-                point.ror?.let { ror ->
-                    val x = paddingLeft + (point.intervalNumber / maxIntervals * graphWidth)
-                    val y = paddingTop + graphHeight - ((ror - adjustedYMin) / adjustedYRange * graphHeight)
+            for (i in 0..maxIntervals) {
+                val x = paddingLeft + (i * stepX)
 
-                    if (firstPoint) {
-                        path.moveTo(x, y)
-                        firstPoint = false
-                    } else {
-                        path.lineTo(x, y)
-                    }
-                }
-            }
+                // Find ROR value for this interval
+                val rorValue = rorData.find { it.intervalNumber.toInt() == i }?.ror ?: 0
 
-            canvas.drawPath(path, linePaint)
+                // Draw ROR value
+                val displayValue = if (rorValue > 0) "$rorValue°" else "$rorValue"
+                canvas.drawText(displayValue, x, paddingTop, valuePaint)
 
-            // Draw points (circles) after line
-            rorData.forEach { point ->
-                point.ror?.let { ror ->
-                    val x = paddingLeft + (point.intervalNumber / maxIntervals * graphWidth)
-                    val y = paddingTop + graphHeight - ((ror - adjustedYMin) / adjustedYRange * graphHeight)
-                    canvas.drawCircle(x, y, 5f, pointPaint)
-                }
+                // Draw time label below
+                val timeStr = formatTime(i.toFloat(), data.intervalSeconds)
+                canvas.drawText(timeStr, x, paddingTop + 40f, timePaint)
             }
         }
 
