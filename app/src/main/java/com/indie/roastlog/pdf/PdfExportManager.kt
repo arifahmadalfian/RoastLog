@@ -261,22 +261,17 @@ class PdfExportManager(private val context: Context) {
         chartCanvas.drawBitmap(chartBitmap, null, destRect, null)
         yPosition += chartHeight * chartScale + 20f
 
-        // ROR Chart
-        if (yPosition > 500f) {
-            canvas = startNewPage()
-            yPosition = 50f
-        }
-
+        // ROR Chart - place on same page as temperature chart
         val rorCanvas = canvas!!
         rorCanvas.drawText("Grafik ROR (Rate of Rise):", 50f, yPosition, sectionPaint)
         yPosition += 15f
 
         val rorBitmap = createRorChartBitmap(data)
-        val rorChartHeight = 200
-        
+        val rorChartHeight = 150
+
         // Scale ROR chart to fit width
         val rorScale = availableWidth / rorBitmap.width
-        
+
         val rorDestRect = android.graphics.RectF(
             50f,
             yPosition,
@@ -485,14 +480,14 @@ class PdfExportManager(private val context: Context) {
 
         val valuePaint = Paint().apply {
             color = "#4CAF50".toColorInt()
-            textSize = 14f
+            textSize = 6f
             textAlign = Paint.Align.CENTER
             typeface = Typeface.DEFAULT_BOLD
         }
 
         val timePaint = Paint().apply {
             color = Color.GRAY
-            textSize = 9f
+            textSize = 6f
             textAlign = Paint.Align.CENTER
         }
 
@@ -508,7 +503,7 @@ class PdfExportManager(private val context: Context) {
         canvas.drawText("ROR (kenaikan suhu bean per menit)", paddingLeft, paddingTop - 20f, titlePaint)
 
         // Draw horizontal line
-        canvas.drawLine(paddingLeft, paddingTop + 25f, paddingLeft + graphWidth, paddingTop + 25f, linePaint)
+        canvas.drawLine(paddingLeft, paddingTop + 5f, paddingLeft + graphWidth, paddingTop + 5f, linePaint)
 
         // Draw ROR values horizontally
         if (rorData.isNotEmpty()) {
@@ -526,7 +521,7 @@ class PdfExportManager(private val context: Context) {
 
                 // Draw time label below
                 val timeStr = formatTime(i.toFloat(), data.intervalSeconds)
-                canvas.drawText(timeStr, x, paddingTop + 40f, timePaint)
+                canvas.drawText(timeStr, x, paddingTop + 20f, timePaint)
             }
         }
 
