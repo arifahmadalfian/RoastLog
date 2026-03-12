@@ -332,8 +332,19 @@ fun RoastingRunScreen(
                 elapsedMillis = uiState.elapsedMillis,
                 isRunning = uiState.isTimerRunning,
                 onStartClick = { viewModel.startTimer() },
-                onStopClick = { viewModel.stopTimer() },
-                onResetClick = { viewModel.resetTimer() }
+                isTimerRunning = uiState.isTimerRunning,
+                onClick = {
+                    eventMarkDialogData = EventMarkDialogData(
+                        title = "End Roasting Temp",
+                        icon = Icons.Default.Flag,
+                        iconColor = Color(0xFFF44336),
+                        onConfirm = {
+                            viewModel.stopTimer()
+                            viewModel.markEndRoast(it)
+                            eventMarkDialogData = null
+                        }
+                    )
+                }
             )
 
             // Manual Mark Event Buttons
@@ -395,26 +406,6 @@ fun RoastingRunScreen(
                             iconColor = Color(0xFFFF9800),
                             onConfirm = { 
                                 viewModel.markFirstCrack(it)
-                                eventMarkDialogData = null
-                            }
-                        )
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-                
-                EventMarkButton(
-                    title = "Finish",
-                    icon = Icons.Default.Flag,
-                    iconColor = Color(0xFFF44336),
-                    containerColor = Color(0xFFF44336),
-                    enabled = uiState.isTimerRunning,
-                    onClick = {
-                        eventMarkDialogData = EventMarkDialogData(
-                            title = "Finish",
-                            icon = Icons.Default.Flag,
-                            iconColor = Color(0xFFF44336),
-                            onConfirm = { 
-                                viewModel.markEndRoast(it)
                                 eventMarkDialogData = null
                             }
                         )
@@ -936,8 +927,8 @@ fun TimerSection(
     elapsedMillis: Long,
     isRunning: Boolean,
     onStartClick: () -> Unit,
-    onStopClick: () -> Unit,
-    onResetClick: () -> Unit
+    isTimerRunning: Boolean,
+    onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -954,9 +945,15 @@ fun TimerSection(
             )
             Spacer(Modifier.weight(1f))
             if (isRunning) {
-                Button(onClick = onStopClick, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
-                    Text("Stop")
-                }
+                EventMarkButton(
+                    title = "Finish",
+                    icon = Icons.Default.Flag,
+                    iconColor = Color(0xFFF44336),
+                    containerColor = Color(0xFFF44336),
+                    enabled = isTimerRunning,
+                    onClick = onClick,
+                    modifier = Modifier.weight(1f)
+                )
             } else {
                 Button(onClick = onStartClick) {
                     Text("Start")

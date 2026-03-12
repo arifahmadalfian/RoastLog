@@ -10,10 +10,10 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class RoastingFormState(
-    val beanType: String = "Arabica",
-    val waterContent: String = "80",
-    val density: String = "30",
-    val weightIn: String = "5",
+    val beanType: String = "",
+    val waterContent: String = "",
+    val density: String = "",
+    val weightIn: String = "",
     val roastType: String = "Medium",
     val isRoastTypeExpanded: Boolean = false,
     
