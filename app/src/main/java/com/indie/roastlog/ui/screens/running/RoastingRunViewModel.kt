@@ -91,6 +91,7 @@ class RoastingRunViewModel : ViewModel() {
             eventMarks = initialEventMarks
         ) }
         updateResults()
+        resetTimer()
     }
 
     private fun updateResults() {
@@ -128,9 +129,9 @@ class RoastingRunViewModel : ViewModel() {
             points.add(it.intervalNumber * intervalSec to it.temperature) 
         }
         
-        // Add event mark points (Turn Point, Yellowing, First Crack, End Roast)
-        listOfNotNull(state.actualTurnPoint, state.actualYellowing, state.actualFirstCrack, state.actualEndRoast)
-            .forEach { points.add(it.seconds to it.temperature) }
+//        // Add event mark points (Turn Point, Yellowing, First Crack, End Roast)
+//        listOfNotNull(state.actualTurnPoint, state.actualYellowing, state.actualFirstCrack, state.actualEndRoast)
+//            .forEach { points.add(it.seconds to it.temperature) }
         
         // Sort by time and remove duplicates
         val uniquePoints = points.sortedBy { it.first }
@@ -597,9 +598,9 @@ class RoastingRunViewModel : ViewModel() {
             points.add(it.intervalNumber * intervalSec to it.temperature)
         }
 
-        // Add event mark points
-        listOfNotNull(state.actualTurnPoint, state.actualYellowing, state.actualFirstCrack, state.actualEndRoast)
-            .forEach { points.add(it.seconds to it.temperature) }
+//        // Add event mark points
+//        listOfNotNull(state.actualTurnPoint, state.actualYellowing, state.actualFirstCrack, state.actualEndRoast)
+//            .forEach { points.add(it.seconds to it.temperature) }
 
         // Find exact match or interpolate
         val sortedPoints = points.sortedBy { it.first }
@@ -638,8 +639,8 @@ class RoastingRunViewModel : ViewModel() {
             points.add(it.intervalNumber * intervalSec to it.temperature)
         }
 
-        listOfNotNull(state.actualTurnPoint, state.actualYellowing, state.actualFirstCrack, state.actualEndRoast)
-            .forEach { points.add(it.seconds to it.temperature) }
+//        listOfNotNull(state.actualTurnPoint, state.actualYellowing, state.actualFirstCrack, state.actualEndRoast)
+//            .forEach { points.add(it.seconds to it.temperature) }
 
         return points.sortedBy { it.first }.lastOrNull { it.first < seconds }?.second
     }
@@ -743,18 +744,18 @@ class RoastingRunViewModel : ViewModel() {
         }
 
         // Add event mark positions (fractional positions)
-        listOfNotNull(
-            runningState.actualTurnPoint,
-            runningState.actualYellowing,
-            runningState.actualFirstCrack,
-            runningState.actualEndRoast
-        ).forEach { ev ->
-            val eventIntervalNum = ev.seconds.toFloat() / interval
-            // Only add if not already in list
-            if (positions.none { it.first == eventIntervalNum }) {
-                positions.add(eventIntervalNum to ev.seconds)
-            }
-        }
+//        listOfNotNull(
+//            runningState.actualTurnPoint,
+//            runningState.actualYellowing,
+//            runningState.actualFirstCrack,
+//            runningState.actualEndRoast
+//        ).forEach { ev ->
+//            val eventIntervalNum = ev.seconds.toFloat() / interval
+//            // Only add if not already in list
+//            if (positions.none { it.first == eventIntervalNum }) {
+//                positions.add(eventIntervalNum to ev.seconds)
+//            }
+//        }
 
         return positions.sortedBy { it.first }
     }
