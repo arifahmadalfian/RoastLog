@@ -41,6 +41,7 @@ data class RoastingRunState(
     val eventMarks: List<RoastingEvent> = emptyList(), // For events at specific times (Turn P, Yellow, etc.)
     val showTemperatureDialog: Boolean = false,
     val currentInterval: Int = 0,
+    val isVoiceActive: Boolean = true,
     
     // ROR Dialog
     val showRorDialog: Boolean = false,
@@ -225,6 +226,10 @@ class RoastingRunViewModel : ViewModel() {
 
     fun updateWeightOut(value: String) {
         _uiState.update { it.copy(weightOut = value.filter { c -> c.isDigit() }) }
+    }
+
+    fun toggleVoiceActive(isActive: Boolean) {
+        _uiState.update { it.copy(isVoiceActive = isActive) }
     }
 
     fun startTimer() {

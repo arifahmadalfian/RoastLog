@@ -1,5 +1,6 @@
 package com.indie.roastlog.ui.screens.running
 
+import android.content.Context
 import android.content.Intent
 import android.speech.tts.TextToSpeech
 import android.util.Log
@@ -271,6 +272,18 @@ fun RoastingRunScreen(
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(text = "Informasi Setup Roasting", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
                     
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "Voice Aktif", style = MaterialTheme.typography.bodyMedium)
+                        Switch(
+                            checked = uiState.isVoiceActive,
+                            onCheckedChange = { viewModel.toggleVoiceActive(it) }
+                        )
+                    }
+
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         InfoItem(label = "Bean", value = uiState.setupData.beanType, modifier = Modifier.weight(1f))
                         InfoItem(label = "Kadar Air", value = "${uiState.setupData.waterContent}%", modifier = Modifier.weight(1f))
@@ -471,11 +484,11 @@ fun RoastingRunScreen(
                     uiState.actualEndRoast == null && uiState.weightOut.isEmpty() && uiState.intervalDataList.isEmpty() ->
                         "End Roast belum ditandai, Berat akhir belum diisi, dan Data interval masih kosong"
                     uiState.actualEndRoast == null && uiState.weightOut.isEmpty() ->
-                        "End Roast belum ditandai dan Berat akhir belum diisi"
+                        "End Roast belum ditandai and Berat akhir belum diisi"
                     uiState.actualEndRoast == null && uiState.intervalDataList.isEmpty() ->
-                        "End Roast belum ditandai dan Data interval masih kosong"
+                        "End Roast belum ditandai and Data interval masih kosong"
                     uiState.weightOut.isEmpty() && uiState.intervalDataList.isEmpty() ->
-                        "Berat akhir belum diisi dan Data interval masih kosong"
+                        "Berat akhir belum diisi and Data interval masih kosong"
                     uiState.actualEndRoast == null ->
                         "End Roast belum ditandai"
                     uiState.weightOut.isEmpty() ->
@@ -697,6 +710,10 @@ fun RoastingRunScreen(
             // Text to Speech for Temperature Input
             LaunchedEffect(Unit) {
                 speakText("Masukkan suhu, menit ke $intervalNum", "Input temperature, minute $intervalNum")
+                if (uiState.isVoiceActive) {
+                    delay(2500)
+                    voiceRecognizer.startListening(context)
+                }
             }
             
             TemperatureInputDialog(
@@ -704,6 +721,7 @@ fun RoastingRunScreen(
                 elapsedTime = formatRunTime(uiState.elapsedMillis),
                 voiceState = voiceState,
                 onVoiceClick = { voiceRecognizer.startListening(context) },
+                isVoiceMode = uiState.isVoiceActive,
                 onDismiss = { 
                     voiceRecognizer.stopListening()
                     voiceRecognizer.resetState()
@@ -713,7 +731,8 @@ fun RoastingRunScreen(
                     voiceRecognizer.stopListening()
                     voiceRecognizer.resetState()
                     viewModel.addTemperature(it) 
-                }
+                },
+                speakText = { ind, eng -> speakText(ind, eng) }
             )
         }
 
@@ -982,10 +1001,12 @@ fun TemperatureInputDialog(
     elapsedTime: String? = null,
     eventMarkData: EventMarkDialogData? = null,
     isEventMarkMode: Boolean = eventMarkData != null,
+    isVoiceMode: Boolean = false,
     voiceState: VoiceRecognitionState = VoiceRecognitionState.Idle,
     onVoiceClick: () -> Unit = {},
     onDismiss: () -> Unit,
-    onConfirm: (Int) -> Unit
+    onConfirm: (Int) -> Unit,
+    speakText: (String, String) -> Unit = { _, _ -> }
 ) {
     var input by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
@@ -993,7 +1014,31 @@ fun TemperatureInputDialog(
 
     LaunchedEffect(voiceState) {
         if (voiceState is VoiceRecognitionState.Success) {
-            input = voiceState.number.toString()
+            val result = voiceState.result.lowercase()
+            
+            if (isVoiceMode && !isEventMarkMode) {
+                val keywords = listOf("ok", "okey", "oke", "submit", "konfirmasi", "iya", "yes")
+                if (keywords.any { result.contains(it) }) {
+                    input.toIntOrNull()?.let { onConfirm(it) }
+                } else {
+                    // Try to extract number from result
+                    val extractedNumber = result.filter { it.isDigit() || it == '.' }.toFloatOrNull()?.toInt()
+                    if (extractedNumber != null) {
+                        input = extractedNumber.toString()
+                        delay(100)
+                        onVoiceClick()
+                    } else {
+                        speakText("Ulangi lagi", "Please repeat")
+                        delay(100)
+                        onVoiceClick()
+                    }
+                }
+            } else {
+                val extractedNumber = result.filter { it.isDigit() || it == '.' }.toFloatOrNull()?.toInt()
+                if (extractedNumber != null) {
+                    input = extractedNumber.toString()
+                }
+            }
         }
     }
     
@@ -1026,7 +1071,7 @@ fun TemperatureInputDialog(
                                 Icon(
                                     imageVector = Icons.Default.Mic,
                                     contentDescription = "Voice Input",
-                                    tint = if (voiceState is VoiceRecognitionState.Listening) 
+                                    tint = if (voiceState is VoiceRecognitionState.Listening)
                                         MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -1047,20 +1092,22 @@ fun TemperatureInputDialog(
                         .fillMaxWidth()
                         .focusRequester(focusRequester)
                 )
-                
+
                 LaunchedEffect(Unit) {
                     delay(300)
                     focusRequester.requestFocus()
                     keyboardController?.show()
                 }
+                if (isVoiceMode || !isEventMarkMode) {
+                    Text(
+                        text = if (input.isNotEmpty()) "Katakan 'Oke' untuk Submit" else "Menunggu suara...",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
-                if (!isEventMarkMode) {
-                    if (voiceState is VoiceRecognitionState.Listening) {
-                        Text("Mendengarkan...", color = MaterialTheme.colorScheme.primary)
-                    }
-                    if (voiceState is VoiceRecognitionState.Error) {
-                        Text(voiceState.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                    }
+                if (voiceState is VoiceRecognitionState.Error) {
+                    Text(voiceState.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
             }
         },
@@ -1071,7 +1118,7 @@ fun TemperatureInputDialog(
                 enabled = input.isNotEmpty()
             ) { Text("Submit") }
         },
-        dismissButton = if (isEventMarkMode) {
+        dismissButton = if (isEventMarkMode || isVoiceMode) {
             { TextButton(onClick = onDismiss) { Text("Batal") } }
         } else null
     )

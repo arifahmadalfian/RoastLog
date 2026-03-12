@@ -305,14 +305,14 @@ private fun buildRorData(s: com.indie.roastlog.data.RoastSessionEntity): List<Ch
         positions.add(i.toFloat() to (i * interval))
     }
     
-    // Add event mark positions (fractional positions)
-    listOfNotNull(s.turnPoint, s.yellowing, s.firstCrack, s.endRoast).forEach { ev ->
-        val eventIntervalNum = ev.seconds.toFloat() / interval
-        // Only add if not already in list
-        if (positions.none { it.second == ev.seconds }) {
-            positions.add(eventIntervalNum to ev.seconds)
-        }
-    }
+//    // Add event mark positions (fractional positions)
+//    listOfNotNull(s.turnPoint, s.yellowing, s.firstCrack, s.endRoast).forEach { ev ->
+//        val eventIntervalNum = ev.seconds.toFloat() / interval
+//        // Only add if not already in list
+//        if (positions.none { it.second == ev.seconds }) {
+//            positions.add(eventIntervalNum to ev.seconds)
+//        }
+//    }
     
     val sortedPositions = positions.sortedBy { it.first }
     
